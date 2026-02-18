@@ -9,7 +9,7 @@ export function cleanRetailerName(name: string): string {
     if (!name) return "Unknown Retailer";
 
     // Basic normalization
-    let cleaned = name.trim().toUpperCase();
+    const cleaned = name.trim().toUpperCase();
 
     // Common adjustments
     if (cleaned.includes("SPAR")) return "SPAR";
@@ -55,8 +55,8 @@ export function standardizeDate(dateStr: string): string {
         }
 
         return dateStr;
-    } catch (e) {
-        console.error("Date parsing error", e);
+    } catch {
+        console.error("Date parsing error");
         return dateStr;
     }
 }
@@ -66,7 +66,7 @@ export function formatDateToMMDDYYYY(isoDate: string): string {
     try {
         const [year, month, day] = isoDate.split('-');
         return `${month}/${day}/${year}`;
-    } catch (e) {
+    } catch {
         return isoDate;
     }
 }

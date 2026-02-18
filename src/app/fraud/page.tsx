@@ -9,7 +9,7 @@ export default async function FraudPage() {
 
     const supabase = createClient(supabaseUrl, supabaseKey, {
         global: {
-            fetch: (url: any, options: any) => {
+            fetch: (url: RequestInfo | URL, options?: RequestInit) => {
                 return fetch(url, { ...options, cache: 'no-store' });
             },
         },
@@ -43,7 +43,7 @@ export default async function FraudPage() {
                         {!receipts || receipts.length === 0 ? (
                             <tr><td colSpan={4} className="p-8 text-center text-muted">No fraud detected yet.</td></tr>
                         ) : (
-                            receipts.map((receipt: any) => (
+                            receipts.map((receipt) => (
                                 <tr key={receipt.id} className="hover:bg-red-50/50 transition-colors group">
                                     <td className="p-4">
                                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">

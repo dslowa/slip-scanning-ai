@@ -9,7 +9,7 @@ export default async function Dashboard() {
 
   const supabase = createClient(supabaseUrl, supabaseKey, {
     global: {
-      fetch: (url: any, options: any) => {
+      fetch: (url: RequestInfo | URL, options?: RequestInit) => {
         return fetch(url, { ...options, cache: 'no-store' });
       },
     },
@@ -82,7 +82,7 @@ export default async function Dashboard() {
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {recentReceipts.map((receipt: any) => (
+            {recentReceipts.map((receipt) => (
               <div key={receipt.id} className="p-4 hover:bg-muted/50 transition-colors flex items-center justify-between group">
                 <div className="flex items-center gap-4">
                   <Link href={`/slips/${receipt.id}`} className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary hover:bg-primary/20 transition-colors">

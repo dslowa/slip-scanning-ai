@@ -8,7 +8,7 @@ export default async function ActivityPage() {
 
     const supabase = createClient(supabaseUrl, supabaseKey, {
         global: {
-            fetch: (url: any, options: any) => {
+            fetch: (url: RequestInfo | URL, options?: RequestInit) => {
                 return fetch(url, { ...options, cache: 'no-store' });
             },
         },
@@ -32,7 +32,7 @@ export default async function ActivityPage() {
                     {!receipts || receipts.length === 0 ? (
                         <p className="text-muted pl-6">No activity recorded.</p>
                     ) : (
-                        receipts.map((r: any) => (
+                        receipts.map((r) => (
                             <div key={r.id} className="relative pl-6">
                                 <span className="absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 border-background bg-primary"></span>
                                 <div className="flex justify-between items-start">

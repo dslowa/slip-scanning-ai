@@ -77,3 +77,30 @@ export interface ExportedItem {
   total_price: number; // qty * unit_price
   final_line_total: number; // after discount
 }
+export interface Receipt {
+  id: string;
+  retailer: string;
+  date: string;
+  time: string;
+  total_amount: number;
+  is_blurry: boolean;
+  is_screen: boolean;
+  is_receipt: boolean;
+  is_duplicate: boolean;
+  image_url: string;
+  created_at: string;
+  recommended_action?: string;
+  fraud_risk_level?: string;
+  moderation_status?: string;
+}
+
+export interface ReceiptItem {
+  id: string;
+  receipt_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  discount: number;
+  total_price: number;
+  final_line_total: number;
+}

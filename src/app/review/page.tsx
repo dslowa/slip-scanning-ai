@@ -9,7 +9,7 @@ export default async function ReviewPage() {
 
     const supabase = createClient(supabaseUrl, supabaseKey, {
         global: {
-            fetch: (url: any, options: any) => {
+            fetch: (url: RequestInfo | URL, options?: RequestInit) => {
                 return fetch(url, { ...options, cache: 'no-store' });
             },
         },
@@ -38,7 +38,7 @@ export default async function ReviewPage() {
                         No items currently pending manual review.
                     </div>
                 ) : (
-                    receipts.map((receipt: any) => (
+                    receipts.map((receipt) => (
                         <div key={receipt.id} className="bg-card border border-border rounded-xl overflow-hidden flex flex-col">
                             <div className="h-48 bg-gray-100 relative overflow-hidden group">
                                 {/* Use img tag for simplicity or Next Image if domain allowlisted */}

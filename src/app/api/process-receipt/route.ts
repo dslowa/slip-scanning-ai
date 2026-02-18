@@ -31,7 +31,7 @@ export async function POST(request: Request) {
         const ocrResult = await processReceiptWithOCR(imageUrl);
 
         // 2. Parse and Standardize
-        const data = parseReceipt(ocrResult, imageUrl);
+        const data = parseReceipt(ocrResult);
 
         // 3. Duplicate Check
         // Create a fingerprint based on specific fields

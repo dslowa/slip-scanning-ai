@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
@@ -38,59 +38,8 @@ export default function ScanPage() {
         }
     };
 
-    const processQueue = useCallback(async () => {
-        if (processing) return;
-        setProcessing(true);
-
-        const processItem = async (item: FileItem) => {
-            // 1. Upload to Storage
-            setQueue(q => q.map(i => i.id === item.id ? { ...i, status: "uploading", progress: 10 } : i));
-
-            try {
-                const fileExt = item.file.name.split('.').pop();
-                const fileName = `${Math.random()}.${fileExt}`;
-                const filePath = `${fileName}`;
-
-                const { error: uploadError } = await supabase.storage
-                    .from('receipts')
-                    .upload(filePath, item.file);
-
-                if (uploadError) throw uploadError;
-
-                setQueue(q => q.map(i => i.id === item.id ? { ...i, status: "processing", progress: 50 } : i));
-
-                // Get Public URL
-                const { data: { publicUrl } } = supabase.storage
-                    .from('receipts')
-                    .getPublicUrl(filePath);
-
-                // 2. Call API
-                const response = await fetch("/api/process-receipt", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ imageUrl: publicUrl }),
-                });
-
-                const result = await response.json();
-
-                if (!response.ok) throw new Error(result.error || "Processing failed");
-
-                setQueue(q => q.map(i => i.id === item.id ? { ...i, status: "done", progress: 100, resultId: result.receiptId } : i));
-
-            } catch (err: any) {
-                console.error(err);
-                setQueue(q => q.map(i => i.id === item.id ? { ...i, status: "error", error: err.message } : i));
-            }
-        };
-
-        // Simple customized worker queue
-        // We loop until all items are done, respecting concurrency
-        // Since we are in a react component, a recursive function or a simpler loop with promise limiting is best.
-        // For simplicity in this demo, let's use a chunky processing loop or just a "find next idle" effect.
-
-        // Better Approach: A recursive runner that maintains `concurrency` active workers.
-
-    }, [queue, processing]);
+    // Simple customized worker queue
+    // We loop until all items are done, respecting concurrency
 
     // Effect to manage queue processing
     useEffect(() => {
@@ -150,8 +99,9 @@ export default function ScanPage() {
                         data: data.data
                     } : i));
 
-                } catch (e: any) {
-                    setQueue(q => q.map(i => i.id === item.id ? { ...i, status: "error", error: e.message } : i));
+                } catch (e: unknown) {
+                    const message = e instanceof Error ? e.message : "Unknown error";
+                    setQueue(q => q.map(i => i.id === item.id ? { ...i, status: "error", error: message } : i));
                 }
             };
 

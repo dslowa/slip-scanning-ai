@@ -129,7 +129,7 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border">
-                                    {items && items.map((item: any) => (
+                                    {items && items.map((item) => (
                                         <tr key={item.id} className="hover:bg-muted/50">
                                             <td className="p-3 w-16">{item.quantity}</td>
                                             <td className="p-3">{item.description}</td>
@@ -146,7 +146,7 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
                     <div className="bg-card border border-border rounded-xl p-6">
                         <h2 className="text-lg font-semibold mb-3">Payment Methods</h2>
                         <ul className="space-y-2">
-                            {payments && payments.map((p: any, i: number) => (
+                            {payments && payments.map((p, i) => (
                                 <li key={i} className="flex justify-between text-sm border-b border-border last:border-0 pb-2 last:pb-0">
                                     <span>{p.method}</span>
                                     <span className="font-medium">R{p.amount}</span>

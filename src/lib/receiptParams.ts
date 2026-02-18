@@ -1,7 +1,7 @@
 import { OcrResponse, ProcessedReceipt, ProcessedItem, ProcessedPayment } from "./types";
 import { cleanRetailerName, standardizeDate } from "./utils";
 
-export function parseReceipt(ocrData: OcrResponse, imageUrl: string): ProcessedReceipt {
+export function parseReceipt(ocrData: OcrResponse): ProcessedReceipt {
     // Extract Retailer
     const retailer = cleanRetailerName(
         ocrData.merchant_detection_sources?.value ||

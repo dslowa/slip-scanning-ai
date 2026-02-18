@@ -6,7 +6,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 export async function processReceiptWithOCR(imageUrl: string): Promise<OcrResponse> {
     if (!GEMINI_API_KEY) {
         console.warn("GEMINI_API_KEY not found. Using Mock Service.");
-        return processReceiptWithMock(imageUrl);
+        return processReceiptWithMock();
     }
 
     try {
@@ -74,11 +74,11 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
                 is_receipt: data.is_receipt !== false, // Default true
                 is_screen: data.is_screen || false,
                 ocr_confidence: 0.9,
-                paymentMethods: (data.paymentMethods || []).map((pm: any) => ({
+                paymentMethods: (data.paymentMethods || []).map((pm: { amount: number; method: string }) => ({
                     amount: { confidence: 0.9, value: pm.amount },
                     method: { confidence: 0.9, value: pm.method }
                 })),
-                products: (data.items || []).map((item: any, i: number) => ({
+                products: (data.items || []).map((item: { unitPrice: number; quantity: number; description: string; totalPrice: number }, i: number) => ({
                     line: i + 1,
                     price: { confidence: 0.9, value: item.unitPrice },
                     qty: { confidence: 0.9, value: item.quantity },
@@ -107,7 +107,7 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
     }
 }
 
-async function processReceiptWithMock(imageUrl: string): Promise<OcrResponse> {
+async function processReceiptWithMock(): Promise<OcrResponse> {
     // Simulate network latency
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
@@ -144,7 +144,7 @@ async function processReceiptWithMock(imageUrl: string): Promise<OcrResponse> {
         "total": { "confidence": 95, "value": 141.13 },
         "time": { "confidence": 99.1866683959961, "value": "19:00" },
         "merchant_detection_sources": { "confidence": 99, "value": "SPAR" }
-    } as any;
+    };
 
     return mockResponse;
 }

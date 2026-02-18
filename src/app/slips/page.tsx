@@ -9,7 +9,7 @@ export default async function SlipsPage() {
 
     const supabase = createClient(supabaseUrl, supabaseKey, {
         global: {
-            fetch: (url: any, options: any) => {
+            fetch: (url: RequestInfo | URL, options?: RequestInit) => {
                 return fetch(url, { ...options, cache: 'no-store' });
             },
         },
@@ -55,7 +55,7 @@ export default async function SlipsPage() {
                                 </td>
                             </tr>
                         ) : (
-                            receipts.map((receipt: any, i: number) => (
+                            receipts.map((receipt, i) => (
                                 <tr key={receipt.id} className="hover:bg-muted/50 transition-colors">
                                     <td className="p-4 text-muted">{i + 1}</td>
                                     <td className="p-4 font-medium">{receipt.retailer || "Unknown"}</td>
