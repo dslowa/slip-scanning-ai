@@ -1,18 +1,13 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 import { processReceiptWithOCR } from "@/lib/ocrService";
 import { parseReceipt } from "@/lib/receiptParams";
 import { formatDateToMMDDYYYY } from "@/lib/utils";
 import { ExportedReceipt } from "@/lib/types";
 
-// Initialize Supabase Client
-// Note: We use SERVER keys here if we want to bypass RLS for admin stuff, 
-// but for now user context is usually passed. 
-// However, since this is a Next.js API route, we should use createClient from utils if available or standard one.
-// Let's use standard env vars for now.
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+export const dynamic = 'force-dynamic';
+
+// Initialize Supabase Client (moved to shared lib)
 
 export async function POST(request: Request) {
     try {
