@@ -88,6 +88,7 @@ export interface Receipt {
   is_receipt: boolean;
   is_duplicate: boolean;
   image_url: string;
+  image_title?: string;
   created_at: string;
   recommended_action?: string;
   fraud_risk_level?: string;

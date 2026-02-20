@@ -97,13 +97,10 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
             throw new Error("Failed to parse OCR response");
         }
 
-    } catch (error) {
-        console.error("Gemini OCR Failed:", error);
-        if (error instanceof Error) {
-            console.error("Error Message:", error.message);
-            console.error("Error Stack:", error.stack);
-        }
-        throw new Error("OCR Processing Failed");
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : "OCR Processing Failed";
+        console.error("Gemini OCR Failed:", errorMessage);
+        throw new Error(errorMessage);
     }
 }
 

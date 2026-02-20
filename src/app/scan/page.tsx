@@ -85,7 +85,10 @@ export default function ScanPage() {
                     const res = await fetch("/api/process-receipt", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ imageUrl: publicUrl }),
+                        body: JSON.stringify({
+                            imageUrl: publicUrl,
+                            imageTitle: item.file.name
+                        }),
                     });
 
                     const data = await res.json();
@@ -220,9 +223,12 @@ export default function ScanPage() {
                             )}
 
                             {item.status === "error" && (
-                                <span className="text-xs text-red-500 max-w-[100px] truncate" title={item.error}>
-                                    {item.error}
-                                </span>
+                                <div className="flex flex-col items-end max-w-[200px]">
+                                    <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-0.5">Processing Failed</span>
+                                    <span className="text-xs text-red-500 text-right leading-tight" title={item.error}>
+                                        {item.error}
+                                    </span>
+                                </div>
                             )}
 
                             {item.status === "done" && item.resultId && (

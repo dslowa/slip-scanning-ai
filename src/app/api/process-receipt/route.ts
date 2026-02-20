@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
     try {
-        const { imageUrl } = await request.json();
+        const { imageUrl, imageTitle } = await request.json();
 
         if (!imageUrl) {
             return NextResponse.json(
@@ -39,10 +39,12 @@ export async function POST(request: Request) {
             .eq("total_amount", data.total_amount)
             .single();
 
-        let isDuplicate = false;
         if (existing) {
             console.log("Duplicate detected!");
-            isDuplicate = true;
+            return NextResponse.json(
+                { error: "Duplicate Receipt: This receipt has already been processed." },
+                { status: 409 }
+            );
         }
 
         // 4. Save to Database
@@ -55,10 +57,11 @@ export async function POST(request: Request) {
                 time: data.time || "00:00:00", // valid time fallback
                 total_amount: data.total_amount,
                 image_url: imageUrl,
+                image_title: imageTitle,
                 is_blurry: data.is_blurry,
                 is_screen: data.is_screen,
                 is_receipt: data.is_receipt,
-                is_duplicate: isDuplicate,
+                is_duplicate: false, // Not a duplicate if we reached here
                 raw_data: ocrResult
                 // user_id: TODO - get from auth context if needed
             })
@@ -115,7 +118,7 @@ export async function POST(request: Request) {
             slip_total: data.total_amount,
             payment_methods: data.payments,
             image_url: imageUrl,
-            is_duplicate: isDuplicate,
+            is_duplicate: false,
             product_line_items: data.items.map(item => ({
                 description: item.description,
                 qty: item.quantity,
@@ -129,14 +132,14 @@ export async function POST(request: Request) {
         return NextResponse.json({
             success: true,
             receiptId: receiptCallback.id,
-            isDuplicate,
+            isDuplicate: false,
             data: exportData
         });
 
     } catch (error) {
         console.error("Processing error:", error);
         return NextResponse.json(
-            { error: "Internal Server Error" },
+            { error: error instanceof Error ? error.message : "Internal Server Error" },
             { status: 500 }
         );
     }
