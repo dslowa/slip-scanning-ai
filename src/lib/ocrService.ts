@@ -20,29 +20,95 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
         const base64Image = Buffer.from(imageBuffer).toString("base64");
 
         const prompt = `
-        Analyze this receipt image and extract structured data.
-        Return ONLY valid JSON.
-        
-        Required JSON Structure:
+You are a South African grocery till slip processor. Analyse this receipt image and extract structured data.
+Return ONLY valid JSON — no markdown, no code fences, no explanation.
+
+CRITICAL — DISCOUNT LINE HANDLING:
+
+South African grocery slips (especially Shoprite, Checkers, and Checkers Hyper) show loyalty card discounts as SEPARATE line items with NEGATIVE prices. These discount lines typically start with "XTRASAVE", "SAVE", "DISC", "PROMO", "LOYALTY", "SMART SHOPPER", "WCARD", or contain negative values like -R5.00.
+
+YOU MUST FOLLOW THESE RULES:
+
+RULE 1: NEVER return a discount line as its own item. Discount lines must ALWAYS be merged into the product(s) they apply to.
+
+RULE 2: A discount line applies to the product(s) IMMEDIATELY ABOVE it. Merge the discount by:
+- Subtracting the discount from the product's totalPrice
+- Recording the discount amount in the "discount" field
+- The "totalPrice" must reflect what the customer ACTUALLY PAID after the discount
+
+RULE 3: SIMPLE DISCOUNT (one discount, one product above):
+On the slip:
+  MIAMI ATCHR 780G          R84.99
+  XTRASAVE ATCHAR           -R5.00
+Return as ONE item:
+{
+  "description": "MIAMI ATCHR 780G",
+  "quantity": 1,
+  "unitPrice": 84.99,
+  "totalPrice": 79.99,
+  "discount": 5.00,
+  "discountDescription": "XTRASAVE ATCHAR"
+}
+
+RULE 4: MULTI-PRODUCT DISCOUNT (one discount applies to multiple products above it):
+Sometimes a single discount line covers 2 or more products listed above it. This happens with "buy X get Y off" or combo deals. In this case, apply the FULL discount to the LAST product before the discount line, and note in discountDescription that it's a multi-buy discount.
+
+Example on the slip:
+  DORITOS 145G              R23.99
+  DORITOS 145G              R23.99
+  DORITOS 145G              R23.99
+  XTRASAVE DORITOS          -R12.97
+Return as:
+{"description":"DORITOS 145G","quantity":1,"unitPrice":23.99,"totalPrice":23.99,"discount":0,"discountDescription":null},
+{"description":"DORITOS 145G","quantity":1,"unitPrice":23.99,"totalPrice":23.99,"discount":0,"discountDescription":null},
+{"description":"DORITOS 145G","quantity":1,"unitPrice":23.99,"totalPrice":11.02,"discount":12.97,"discountDescription":"XTRASAVE DORITOS (multi-buy)"}
+
+RULE 5: CROSS-PRODUCT DISCOUNT (one discount covers different product types above it):
+Example:
+  BACON SHLDR 200G   2 @    R85.98
+  BACON DICD 200G    2 @    R79.98
+  XTRASAVE BACON            -R34.00
+Apply the full discount to the last product before the discount line:
+{"description":"BACON SHLDR 200G","quantity":2,"unitPrice":42.99,"totalPrice":85.98,"discount":0,"discountDescription":null},
+{"description":"BACON DICD 200G","quantity":2,"unitPrice":39.99,"totalPrice":45.98,"discount":34.00,"discountDescription":"XTRASAVE BACON (multi-buy)"}
+
+RULE 6: The sum of ALL item totalPrice values MUST equal the receipt total. This is your verification check. If they don't match, re-examine your discount merging.
+
+RULE 7: Items with NO discount should have discount: 0 and discountDescription: null.
+
+EXTRACTION RULES:
+- South African currency is ZAR. All amounts as numbers, no symbols.
+- Date formats: DD/MM/YYYY, DD-MM-YYYY. Return as YYYY-MM-DD.
+- Extract quantities from "2 @", "x2", "QTY 2" notations.
+- Never hallucinate — use null if unreadable.
+
+QUALITY CHECKS:
+- is_blurry: true if image too blurry to read
+- is_screen: true if screenshot or photo of a screen
+- is_receipt: false if not a receipt
+
+Required JSON Structure:
+{
+    "retailer": "string",
+    "date": "string (YYYY-MM-DD)",
+    "time": "string (HH:MM)",
+    "total": number,
+    "paymentMethods": [{"method": "string", "amount": number}],
+    "items": [
         {
-            "retailer": "string (store name)",
-            "date": "string (YYYY-MM-DD or MM/DD/YYYY)",
-            "time": "string (HH:MM)",
-            "total": number (float),
-            "paymentMethods": [ { "method": "string", "amount": number } ],
-            "items": [
-                {
-                    "description": "string",
-                    "quantity": number,
-                    "unitPrice": number,
-                    "totalPrice": number
-                }
-            ],
-            "is_blurry": boolean,
-            "is_screen": boolean,
-            "is_receipt": boolean
+            "description": "string",
+            "quantity": number,
+            "unitPrice": number,
+            "totalPrice": number,
+            "discount": number,
+            "discountDescription": "string or null"
         }
-        `;
+    ],
+    "is_blurry": boolean,
+    "is_screen": boolean,
+    "is_receipt": boolean
+}
+`;
 
         const result = await model.generateContent([
             prompt,
@@ -78,13 +144,22 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
                     amount: { confidence: 0.9, value: pm.amount },
                     method: { confidence: 0.9, value: pm.method }
                 })),
-                products: (data.items || []).map((item: { unitPrice: number; quantity: number; description: string; totalPrice: number }, i: number) => ({
+                products: (data.items || []).map((item: {
+                    unitPrice: number;
+                    quantity: number;
+                    description: string;
+                    totalPrice: number;
+                    discount: number;
+                    discountDescription: string | null;
+                }, i: number) => ({
                     line: i + 1,
                     price: { confidence: 0.9, value: item.unitPrice },
                     qty: { confidence: 0.9, value: item.quantity },
                     rsd: { confidence: 0.9, value: item.description },
                     totalPrice: { confidence: 0.9, value: item.totalPrice },
-                    product_name: item.description
+                    product_name: item.description,
+                    discount: item.discount || 0,
+                    discount_description: item.discountDescription || null
                 })),
                 total: { confidence: 0.9, value: data.total },
                 time: { confidence: 0.9, value: data.time },
