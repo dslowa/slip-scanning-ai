@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDateToMMDDYYYY, formatDateToDDMMYYYY } from "@/lib/utils";
+import ExportButtons from "@/components/ExportButtons";
 
 export const dynamic = 'force-dynamic';
 
@@ -67,7 +68,8 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
                         <p className="text-muted mt-1">{formatDateToDDMMYYYY(receipt.date)} • {receipt.time}</p>
                     </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-4">
+                    <ExportButtons data={exportData} filename={`receipt-${receipt.id}`} />
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${receipt.is_duplicate ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
                         }`}>
                         {receipt.is_duplicate ? "Duplicate" : "Valid Receipt"}
