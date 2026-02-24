@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatDateToMMDDYYYY } from "@/lib/utils";
+import { formatDateToMMDDYYYY, formatDateToDDMMYYYY } from "@/lib/utils";
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +64,7 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
                     </Link>
                     <div>
                         <h1 className="text-2xl font-bold text-foreground">{receipt.retailer}</h1>
-                        <p className="text-muted mt-1">{formatDateToMMDDYYYY(receipt.date)} • {receipt.time}</p>
+                        <p className="text-muted mt-1">{formatDateToDDMMYYYY(receipt.date)} • {receipt.time}</p>
                     </div>
                 </div>
                 <div className="flex gap-2">
@@ -104,7 +104,7 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
                             </div>
                             <div>
                                 <span className="text-muted block">Date</span>
-                                <span className="font-medium">{formatDateToMMDDYYYY(receipt.date)}</span>
+                                <span className="font-medium">{formatDateToDDMMYYYY(receipt.date)}</span>
                             </div>
                             <div>
                                 <span className="text-muted block">Time</span>

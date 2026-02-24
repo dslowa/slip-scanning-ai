@@ -27,27 +27,27 @@ export function cleanRetailerName(name: string): string {
 export function standardizeDate(dateStr: string): string {
     if (!dateStr) return new Date().toISOString().split('T')[0]; // Fallback to today
 
-    // Try to parse common formats
-    // 01.12.25 -> 2025-12-01
-    // 12 Dec 2025 -> 2025-12-12
-
     try {
-        // Handle DD.MM.YY or DD.MM.YYYY
-        if (dateStr.match(/^\d{2}\.\d{2}\.\d{2,4}$/)) {
-            const parts = dateStr.split('.');
-            const day = parts[0];
-            const month = parts[1];
-            let year = parts[2];
+        const normalized = dateStr.replace(/[\.\s-]/g, '/');
+
+        // Handle DD/MM/YY or DD/MM/YYYY
+        const dmyMatch = normalized.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+        if (dmyMatch) {
+            const day = dmyMatch[1].padStart(2, '0');
+            const month = dmyMatch[2].padStart(2, '0');
+            let year = dmyMatch[3];
             if (year.length === 2) year = "20" + year;
             return `${year}-${month}-${day}`; // ISO format for DB
         }
 
-        // Handle slash format DD/MM/YYYY or MM/DD/YYYY? 
-        // South Africa uses DD/MM/YYYY usually. User said "MM/DD/YYYY" in prompt but example "01.12.25" fits DD.MM.YY for Dec 1st.
-        // Let's assume input needs to be standardized to MM/DD/YYYY for display but YYYY-MM-DD for DB.
-        // The prompt asked for Date Data type: string Format: MM/DD/YYYY.
-        // But for DB (Postgres Date), we should probably store as YYYY-MM-DD or standard Date type.
-        // I'll return YYYY-MM-DD for consistency and format it for display if needed.
+        // Handle YYYY/MM/DD
+        const ymdMatch = normalized.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+        if (ymdMatch) {
+            const year = ymdMatch[1];
+            const month = ymdMatch[2].padStart(2, '0');
+            const day = ymdMatch[3].padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
 
         const date = new Date(dateStr);
         if (!isNaN(date.getTime())) {
@@ -64,8 +64,23 @@ export function standardizeDate(dateStr: string): string {
 export function formatDateToMMDDYYYY(isoDate: string): string {
     if (!isoDate) return "";
     try {
+        if (!isoDate.includes('-')) return isoDate;
         const [year, month, day] = isoDate.split('-');
-        return `${month}/${day}/${year}`;
+        if (!year || !month || !day) return isoDate;
+        return `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+    } catch {
+        return isoDate;
+    }
+}
+
+// Output: DD/MM/YYYY
+export function formatDateToDDMMYYYY(isoDate: string): string {
+    if (!isoDate) return "";
+    try {
+        if (!isoDate.includes('-')) return isoDate;
+        const [year, month, day] = isoDate.split('-');
+        if (!year || !month || !day) return isoDate;
+        return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
     } catch {
         return isoDate;
     }
