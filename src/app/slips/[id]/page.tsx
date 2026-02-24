@@ -36,6 +36,7 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
 
     // Construct Export Format for Display
     const exportData = {
+        file_name: receipt.image_title,
         retailer_name: receipt.retailer,
         date: formatDateToMMDDYYYY(receipt.date),
         time: receipt.time,

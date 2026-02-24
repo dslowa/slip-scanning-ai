@@ -48,6 +48,7 @@ export default function ReceiptDataTable({ initialReceipts }: ReceiptDataTablePr
             if (error) throw error;
 
             const exportData = data.map(receipt => ({
+                file_name: receipt.image_title,
                 id: receipt.id,
                 retailer_name: receipt.retailer,
                 date: receipt.date,
