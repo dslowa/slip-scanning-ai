@@ -5,6 +5,8 @@ export interface OcrProduct {
   rsd: { confidence: number; value: string; original_case_value?: string };
   totalPrice: { confidence: number; value: number };
   product_name?: string;
+  discount?: number;
+  discount_description?: string | null;
   infoLines?: { text: { value: string }; type: { value: string } }[];
 }
 

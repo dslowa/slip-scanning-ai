@@ -23,11 +23,15 @@ export function parseReceipt(ocrData: OcrResponse): ProcessedReceipt {
         const description = product.product_name || product.rsd?.value || product.rsd?.original_case_value || "Unknown Item";
         const quantity = product.qty?.value || 1;
         const unit_price = product.price?.value || 0;
-        const total_price = product.totalPrice?.value || (quantity * unit_price);
 
-        // Calculate discount if possible (needs more data usually, but we can try)
-        // For now assuming discount is 0 unless implicit difference
-        const discount = 0;
+        // As per ExportedItem definition: total_price is qty * unit_price
+        const total_price = Number((quantity * unit_price).toFixed(2));
+
+        // Get discount directly from product if it exists
+        const discount = product.discount || 0;
+
+        // Final paid amount is exactly what OCR returned as totalPrice
+        const final_price = product.totalPrice?.value || Number((total_price - discount).toFixed(2));
 
         return {
             description,
@@ -35,7 +39,7 @@ export function parseReceipt(ocrData: OcrResponse): ProcessedReceipt {
             unit_price,
             total_price,
             discount,
-            final_price: total_price // Assuming simplified total for now
+            final_price
         };
     });
 
