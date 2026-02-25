@@ -72,9 +72,15 @@ Apply the full discount to the last product before the discount line:
 {"description":"BACON SHLDR 200G","quantity":2,"unitPrice":42.99,"totalPrice":85.98,"discount":0,"discountDescription":null},
 {"description":"BACON DICD 200G","quantity":2,"unitPrice":39.99,"totalPrice":45.98,"discount":34.00,"discountDescription":"XTRASAVE BACON (multi-buy)"}
 
-RULE 6: The sum of ALL item totalPrice values MUST equal the receipt total. This is your verification check. If they don't match, re-examine your discount merging.
+RULE 6: The sum of ALL item totalPrice values MUST equal the receipt total. Discrepancies of up to R0.10 are acceptable due to cash rounding (see Rule 8).
 
 RULE 7: Items with NO discount should have discount: 0 and discountDescription: null.
+
+RULE 8: SOUTH AFRICAN CASH ROUNDING:
+Cash transactions are rounded to the nearest 5 or 10 cents (e.g., R437.12 becomes R437.10).
+- If the slip contains a "Rounding", "Round", or "Cash Round" line item, DO NOT return it as a product.
+- If the sum of items (e.g., R437.12) differs from the "Total" (e.g., R437.10) by 5c or less, accept the item sum as the source of truth for the items.
+- The 'total' field in the JSON should reflect the final Total as printed on the slip.
 
 EXTRACTION RULES:
 - South African currency is ZAR. All amounts as numbers, no symbols.
