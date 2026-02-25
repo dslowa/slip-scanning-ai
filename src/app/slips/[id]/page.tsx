@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDateToMMDDYYYY, formatDateToDDMMYYYY } from "@/lib/utils";
 import ExportButtons from "@/components/ExportButtons";
+import ReceiptImage from "@/components/ReceiptImage";
 
 export const dynamic = 'force-dynamic';
 
@@ -82,10 +83,9 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
                 {/* Left Column: Image */}
                 <div className="space-y-4">
                     <div className="bg-card border border-border rounded-xl overflow-hidden h-[80vh] sticky top-6">
-                        <img
+                        <ReceiptImage
                             src={receipt.image_url}
                             alt="Receipt"
-                            className="w-full h-full object-contain bg-gray-900"
                         />
                     </div>
                 </div>
