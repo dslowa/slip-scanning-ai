@@ -39,12 +39,9 @@ export async function POST(request: Request) {
             .eq("total_amount", data.total_amount)
             .single();
 
-        if (existing) {
-            console.log("Duplicate detected!");
-            return NextResponse.json(
-                { error: "Duplicate Receipt: This receipt has already been processed." },
-                { status: 409 }
-            );
+        const isDuplicateSlip = !!existing;
+        if (isDuplicateSlip) {
+            console.log("Duplicate detected – saving with is_duplicate flag.");
         }
 
         // 4. Save to Database
@@ -61,7 +58,7 @@ export async function POST(request: Request) {
                 is_blurry: data.is_blurry,
                 is_screen: data.is_screen,
                 is_receipt: data.is_receipt,
-                is_duplicate: false, // Not a duplicate if we reached here
+                is_duplicate: isDuplicateSlip,
                 raw_data: ocrResult
                 // user_id: TODO - get from auth context if needed
             })
@@ -118,7 +115,7 @@ export async function POST(request: Request) {
             slip_total: data.total_amount,
             payment_methods: data.payments,
             image_url: imageUrl,
-            is_duplicate: false,
+            is_duplicate: isDuplicateSlip,
             product_line_items: data.items.map(item => ({
                 description: item.description,
                 qty: item.quantity,
@@ -132,7 +129,7 @@ export async function POST(request: Request) {
         return NextResponse.json({
             success: true,
             receiptId: receiptCallback.id,
-            isDuplicate: false,
+            isDuplicate: isDuplicateSlip,
             data: exportData
         });
 
