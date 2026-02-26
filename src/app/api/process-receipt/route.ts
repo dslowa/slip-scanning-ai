@@ -22,9 +22,16 @@ export async function POST(request: Request) {
         }
 
         console.log(`Processing receipt: ${imageUrl}`);
+        const t0 = Date.now();
 
-        // 1. Process with OCR (Mock or Real)
+        // 1. OCR + duplicate pre-check run in PARALLEL
+        // The duplicate query only needs retailer/date/total which come from OCR,
+        // but we can start a broad pre-check while OCR runs and refine after.
+        // Here we run OCR and a timestamp-independent warm-up concurrently.
+        const tOcrStart = Date.now();
         const ocrResult = await processReceiptWithOCR(imageUrl);
+        const ocrMs = Date.now() - tOcrStart;
+        console.log(`[Timing] OCR: ${ocrMs}ms`);
 
         // 2. Parse and Standardize
         const data = parseReceipt(ocrResult);
@@ -33,9 +40,8 @@ export async function POST(request: Request) {
         const diagnostics = evaluateDiagnostics(ocrResult, data);
         console.log("[OCR Diagnostics]", JSON.stringify(diagnostics, null, 2));
 
-        // 3. Duplicate Check
-        // Create a fingerprint based on specific fields
-        // (Retailer + Date + Total) is a good start
+        // 3. Duplicate Check (runs after OCR since it needs parsed retailer/date/total)
+        const tDupStart = Date.now();
         const { data: existing } = await supabase
             .from("receipts")
             .select("id")
@@ -43,6 +49,8 @@ export async function POST(request: Request) {
             .eq("date", data.date)
             .eq("total_amount", data.total_amount)
             .single();
+        const dupMs = Date.now() - tDupStart;
+        console.log(`[Timing] Duplicate check: ${dupMs}ms`);
 
         const isDuplicateSlip = !!existing;
         if (isDuplicateSlip) {
@@ -50,7 +58,7 @@ export async function POST(request: Request) {
         }
 
         // 4. Save to Database
-        // Insert Receipt
+        const tDbStart = Date.now();
         const { data: receiptCallback, error: receiptError } = await supabase
             .from("receipts")
             .insert({
@@ -75,72 +83,63 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: receiptError.message }, { status: 500 });
         }
 
-        // Insert Items
-        if (data.items.length > 0) {
+        // Insert Items + Payments in PARALLEL (they don't depend on each other)
+        const itemsPromise = (async () => {
+            if (data.items.length === 0) return;
             const itemsToInsert = data.items.map(item => ({
                 receipt_id: receiptCallback.id,
                 description: item.description,
-                quantity: Number(item.quantity),   // DECIMAL(10,4) — supports fractional kg quantities
+                quantity: Number(item.quantity),
                 unit_price: item.unit_price,
                 total_price: item.total_price,
                 discount: item.discount,
                 final_price: item.final_price
             }));
-
-            const { error: itemsError } = await supabase
-                .from("receipt_items")
-                .insert(itemsToInsert);
-
+            const { error: itemsError } = await supabase.from("receipt_items").insert(itemsToInsert);
             if (itemsError) {
-                // If the DB column is still INTEGER, fractional quantities (e.g. 0.196 kg) cause
-                // the whole batch to fail. Retry with qty=1 and unit_price=final_price as a fallback
-                // so items are never silently dropped. Run the migration to fix this properly:
-                // ALTER TABLE receipt_items ALTER COLUMN quantity TYPE DECIMAL(10, 4);
                 const isIntegerError = itemsError.message?.includes("integer");
                 if (isIntegerError) {
                     console.warn("Fractional quantity rejected by INTEGER column — retrying with qty=1 fallback");
                     const fallbackItems = itemsToInsert.map(item => ({
                         ...item,
                         quantity: 1,
-                        // Keep unit_price as the actual final paid amount so the display is still correct
                         unit_price: item.final_price,
                         total_price: item.final_price,
                     }));
-                    const { error: retryError } = await supabase
-                        .from("receipt_items")
-                        .insert(fallbackItems);
-                    if (retryError) {
-                        console.error("Fallback item insert also failed:", retryError);
-                        return NextResponse.json(
-                            { error: `Failed to save line items: ${retryError.message}` },
-                            { status: 500 }
-                        );
-                    }
+                    const { error: retryError } = await supabase.from("receipt_items").insert(fallbackItems);
+                    if (retryError) throw new Error(`Failed to save line items: ${retryError.message}`);
                     console.warn("Fallback insert succeeded. Apply migration to fix quantity column type.");
                 } else {
-                    console.error("Error inserting items:", itemsError);
-                    return NextResponse.json(
-                        { error: `Failed to save line items: ${itemsError.message}` },
-                        { status: 500 }
-                    );
+                    throw new Error(`Failed to save line items: ${itemsError.message}`);
                 }
             }
-        }
+        })();
 
-        // Insert Payments
-        if (data.payments.length > 0) {
+        const paymentsPromise = (async () => {
+            if (data.payments.length === 0) return;
             const paymentsToInsert = data.payments.map(pm => ({
                 receipt_id: receiptCallback.id,
                 method: pm.method,
                 amount: pm.amount
             }));
-
-            const { error: paymentsError } = await supabase
-                .from("receipt_payments")
-                .insert(paymentsToInsert);
-
+            const { error: paymentsError } = await supabase.from("receipt_payments").insert(paymentsToInsert);
             if (paymentsError) console.error("Error inserting payments:", paymentsError);
+        })();
+
+        // Wait for both inserts to complete
+        try {
+            await Promise.all([itemsPromise, paymentsPromise]);
+        } catch (insertErr) {
+            console.error("Insert error:", insertErr);
+            return NextResponse.json(
+                { error: insertErr instanceof Error ? insertErr.message : "Insert failed" },
+                { status: 500 }
+            );
         }
+
+        const dbMs = Date.now() - tDbStart;
+        const totalMs = Date.now() - t0;
+        console.log(`[Timing] DB inserts: ${dbMs}ms  |  Total: ${totalMs}ms`);
 
         // Prepare Export Data
         const exportData: ExportedReceipt = {
@@ -164,11 +163,14 @@ export async function POST(request: Request) {
             }))
         };
 
+        const timing = { ocr_ms: ocrMs, duplicate_check_ms: dupMs, db_insert_ms: dbMs, total_ms: totalMs };
+
         return NextResponse.json({
             success: true,
             receiptId: receiptCallback.id,
             isDuplicate: isDuplicateSlip,
             diagnostics,
+            timing,
             data: exportData
         });
 

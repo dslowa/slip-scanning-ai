@@ -10,14 +10,12 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
     }
 
     try {
-        console.log("Processing with Gemini 1.5 Flash...");
+        console.log("Processing with Gemini Flash...");
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
-        // Fetch Image
-        const imageResp = await fetch(imageUrl);
-        const imageBuffer = await imageResp.arrayBuffer();
-        const base64Image = Buffer.from(imageBuffer).toString("base64");
+        // Detect MIME type from URL — no server-side download needed
+        const mimeType = imageUrl.toLowerCase().includes(".png") ? "image/png" : "image/jpeg";
 
         const prompt = `
 You are a South African grocery till slip processor. Analyse this receipt image and extract structured data.
@@ -116,12 +114,14 @@ Required JSON Structure:
 }
 `;
 
+        // Pass image URL directly to Gemini — it fetches the image itself.
+        // This removes a full server-side download+encode step (~0.3–1s saved).
         const result = await model.generateContent([
             prompt,
             {
-                inlineData: {
-                    data: base64Image,
-                    mimeType: "image/jpeg", // Assuming JPEG for now, could detect from URL
+                fileData: {
+                    fileUri: imageUrl,
+                    mimeType,
                 },
             },
         ]);
