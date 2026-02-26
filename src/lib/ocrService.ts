@@ -84,7 +84,9 @@ EXTRACTION RULES:
 - South African currency is ZAR. All amounts as numbers, no symbols.
 - Date formats: DD/MM/YYYY, DD-MM-YYYY. Return as YYYY-MM-DD.
 - Extract quantities from "2 @", "x2", "QTY 2" notations.
-- Never hallucinate — use null if unreadable.
+- Never hallucinate — use null if unreadable. If the date is not clearly visible or is cut off, return "date": null.
+- CRITICAL: DO NOT use today's date (2026-02-26) or any current date as a fallback. If you cannot find a date PRINTED on the slip, return null.
+- STRICT LEGIBILITY RULE: Only extract the date if it is CLEARLY READABLE and distinct. If the date text is very small, faint, blurry, or low-contrast (like at the bottom of a faded slip), treat it as UNREADABLE and return "date": null and "date_is_printed": false. Do not guess or "hunt" for unreadable dates.
 
 QUALITY CHECKS:
 - is_blurry: true if image too blurry to read
@@ -94,8 +96,9 @@ QUALITY CHECKS:
 Required JSON Structure:
 {
     "retailer": "string",
-    "date": "string (YYYY-MM-DD)",
-    "time": "string (HH:MM)",
+    "date": "string (YYYY-MM-DD) or null",
+    "date_is_printed": "boolean (true if the date was clearly seen and extracted from the image, false if not found)",
+    "time": "string (HH:MM) or null",
     "total": number,
     "paymentMethods": [{"method": "string", "amount": number}],
     "items": [
@@ -139,7 +142,7 @@ Required JSON Structure:
             // Map to internal OcrResponse structure
             return {
                 banner_id: 0,
-                date: { confidence: 0.9, value: data.date },
+                date: { confidence: data.date_is_printed ? 0.9 : 0, value: data.date_is_printed ? data.date : null },
                 isDigital: false,
                 isFraudulent: false,
                 is_blurry: data.is_blurry || false,

@@ -24,8 +24,8 @@ export function cleanRetailerName(name: string): string {
     return cleaned;
 }
 
-export function standardizeDate(dateStr: string): string {
-    if (!dateStr) return new Date().toISOString().split('T')[0]; // Fallback to today
+export function standardizeDate(dateStr: string | null | undefined): string {
+    if (!dateStr || dateStr.trim() === "") return ""; // Blank — date was not readable
 
     try {
         const normalized = dateStr.replace(/[\.\s-]/g, '/');
@@ -40,7 +40,7 @@ export function standardizeDate(dateStr: string): string {
             return `${year}-${month}-${day}`; // ISO format for DB
         }
 
-        // Handle YYYY/MM/DD
+        // Handle YYYY/MM/DD or YYYY-MM-DD
         const ymdMatch = normalized.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
         if (ymdMatch) {
             const year = ymdMatch[1];
@@ -54,10 +54,10 @@ export function standardizeDate(dateStr: string): string {
             return date.toISOString().split('T')[0];
         }
 
-        return dateStr;
+        return ""; // Unparseable — treat as blank
     } catch {
         console.error("Date parsing error");
-        return dateStr;
+        return "";
     }
 }
 // Output: MM/DD/YYYY

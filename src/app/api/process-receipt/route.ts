@@ -63,7 +63,7 @@ export async function POST(request: Request) {
             .from("receipts")
             .insert({
                 retailer: data.retailer,
-                date: new Date(data.date).toISOString().split('T')[0], // Ensure YYYY-MM-DD for SQL date
+                date: data.date ? new Date(data.date).toISOString().split('T')[0] : null, // Ensure YYYY-MM-DD for SQL date, null if unreadable
                 time: data.time || "00:00:00", // valid time fallback
                 total_amount: data.total_amount,
                 image_url: imageUrl,
