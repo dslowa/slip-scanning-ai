@@ -80,7 +80,7 @@ export async function POST(request: Request) {
             const itemsToInsert = data.items.map(item => ({
                 receipt_id: receiptCallback.id,
                 description: item.description,
-                quantity: item.quantity,
+                quantity: Number(item.quantity),   // DECIMAL(10,4) — supports fractional kg quantities
                 unit_price: item.unit_price,
                 total_price: item.total_price,
                 discount: item.discount,
@@ -91,7 +91,40 @@ export async function POST(request: Request) {
                 .from("receipt_items")
                 .insert(itemsToInsert);
 
-            if (itemsError) console.error("Error inserting items:", itemsError);
+            if (itemsError) {
+                // If the DB column is still INTEGER, fractional quantities (e.g. 0.196 kg) cause
+                // the whole batch to fail. Retry with qty=1 and unit_price=final_price as a fallback
+                // so items are never silently dropped. Run the migration to fix this properly:
+                // ALTER TABLE receipt_items ALTER COLUMN quantity TYPE DECIMAL(10, 4);
+                const isIntegerError = itemsError.message?.includes("integer");
+                if (isIntegerError) {
+                    console.warn("Fractional quantity rejected by INTEGER column — retrying with qty=1 fallback");
+                    const fallbackItems = itemsToInsert.map(item => ({
+                        ...item,
+                        quantity: 1,
+                        // Keep unit_price as the actual final paid amount so the display is still correct
+                        unit_price: item.final_price,
+                        total_price: item.final_price,
+                    }));
+                    const { error: retryError } = await supabase
+                        .from("receipt_items")
+                        .insert(fallbackItems);
+                    if (retryError) {
+                        console.error("Fallback item insert also failed:", retryError);
+                        return NextResponse.json(
+                            { error: `Failed to save line items: ${retryError.message}` },
+                            { status: 500 }
+                        );
+                    }
+                    console.warn("Fallback insert succeeded. Apply migration to fix quantity column type.");
+                } else {
+                    console.error("Error inserting items:", itemsError);
+                    return NextResponse.json(
+                        { error: `Failed to save line items: ${itemsError.message}` },
+                        { status: 500 }
+                    );
+                }
+            }
         }
 
         // Insert Payments
