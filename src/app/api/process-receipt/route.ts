@@ -4,6 +4,7 @@ import { processReceiptWithOCR } from "@/lib/ocrService";
 import { parseReceipt } from "@/lib/receiptParams";
 import { formatDateToMMDDYYYY } from "@/lib/utils";
 import { ExportedReceipt } from "@/lib/types";
+import { evaluateDiagnostics } from "@/lib/ocrDiagnostics";
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +28,10 @@ export async function POST(request: Request) {
 
         // 2. Parse and Standardize
         const data = parseReceipt(ocrResult);
+
+        // 2b. Run diagnostics
+        const diagnostics = evaluateDiagnostics(ocrResult, data);
+        console.log("[OCR Diagnostics]", JSON.stringify(diagnostics, null, 2));
 
         // 3. Duplicate Check
         // Create a fingerprint based on specific fields
@@ -59,7 +64,7 @@ export async function POST(request: Request) {
                 is_screen: data.is_screen,
                 is_receipt: data.is_receipt,
                 is_duplicate: isDuplicateSlip,
-                raw_data: ocrResult
+                raw_data: { ...ocrResult, _diagnostics: diagnostics }
                 // user_id: TODO - get from auth context if needed
             })
             .select()
@@ -130,6 +135,7 @@ export async function POST(request: Request) {
             success: true,
             receiptId: receiptCallback.id,
             isDuplicate: isDuplicateSlip,
+            diagnostics,
             data: exportData
         });
 

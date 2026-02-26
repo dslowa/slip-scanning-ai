@@ -58,6 +58,10 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
         })) || []
     };
 
+    // Extract diagnostics from raw_data (stored as { ...ocrResult, _diagnostics: {...} })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const diagnostics = (receipt.raw_data as any)?._diagnostics ?? null;
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -165,6 +169,87 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
                             <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap">
                                 {JSON.stringify(exportData, null, 2)}
                             </pre>
+                        </div>
+                    </div>
+
+                    {/* OCR Diagnostics */}
+                    <div className="bg-card border border-border rounded-xl overflow-hidden">
+                        <div className="p-4 border-b border-border flex items-center justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold">OCR Diagnostics</h2>
+                                {diagnostics && (
+                                    <p className="text-xs text-muted mt-0.5">
+                                        Gemini returned <strong>{diagnostics.raw_item_count}</strong> item(s)&nbsp;·&nbsp;<strong>{diagnostics.saved_item_count}</strong> saved to DB
+                                    </p>
+                                )}
+                            </div>
+                            {diagnostics && (
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                    diagnostics.rules.every((r: { passed: boolean }) => r.passed)
+                                        ? "bg-green-100 text-green-800"
+                                        : "bg-yellow-100 text-yellow-800"
+                                }`}>
+                                    {diagnostics.rules.filter((r: { passed: boolean }) => !r.passed).length === 0
+                                        ? "All checks passed"
+                                        : `${diagnostics.rules.filter((r: { passed: boolean }) => !r.passed).length} check(s) failed`}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="p-4 space-y-4">
+                            {!diagnostics ? (
+                                <p className="text-sm text-muted italic">
+                                    No diagnostics available. Re-upload this slip to generate diagnostics.
+                                </p>
+                            ) : (
+                                <>
+                                    {/* Warnings */}
+                                    {diagnostics.warnings.length > 0 && (
+                                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-1">
+                                            <p className="text-xs font-semibold text-yellow-800 uppercase tracking-wide mb-1">⚠️ Warnings</p>
+                                            {diagnostics.warnings.map((w: string, i: number) => (
+                                                <p key={i} className="text-xs text-yellow-700">{w}</p>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Rule checks table */}
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                                                    <th className="pb-2 pr-3 w-8">Status</th>
+                                                    <th className="pb-2 pr-4">Check</th>
+                                                    <th className="pb-2">Detail</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-border">
+                                                {diagnostics.rules.map((rule: { rule: string; passed: boolean; detail: string }, i: number) => (
+                                                    <tr key={i} className={!rule.passed ? "bg-red-50/60" : ""}>
+                                                        <td className="py-2.5 pr-3 text-center">{rule.passed ? "✅" : "❌"}</td>
+                                                        <td className="py-2.5 pr-4 font-medium text-xs whitespace-nowrap">{rule.rule}</td>
+                                                        <td className="py-2.5 text-xs text-muted">{rule.detail}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* Raw Gemini response */}
+                                    {diagnostics.gemini_raw_response && (
+                                        <details className="mt-2">
+                                            <summary className="text-xs text-muted cursor-pointer hover:text-foreground select-none">
+                                                Show raw Gemini response
+                                            </summary>
+                                            <div className="mt-2 bg-muted rounded-lg p-3 overflow-x-auto">
+                                                <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap break-all">
+                                                    {diagnostics.gemini_raw_response}
+                                                </pre>
+                                            </div>
+                                        </details>
+                                    )}
+                                </>
+                            )}
                         </div>
                     </div>
 

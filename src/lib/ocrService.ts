@@ -169,7 +169,8 @@ Required JSON Structure:
                 })),
                 total: { confidence: 0.9, value: data.total },
                 time: { confidence: 0.9, value: data.time },
-                merchant_detection_sources: { value: data.retailer, confidence: 0.9 }
+                merchant_detection_sources: { value: data.retailer, confidence: 0.9 },
+                gemini_raw_response: text,
             } as OcrResponse;
 
         } catch (parseError) {

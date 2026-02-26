@@ -1,3 +1,17 @@
+export interface OcrRuleCheck {
+  rule: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface OcrDiagnostics {
+  raw_item_count: number;
+  saved_item_count: number;
+  rules: OcrRuleCheck[];
+  warnings: string[];
+  gemini_raw_response?: string;
+}
+
 export interface OcrProduct {
   line: number;
   price: { confidence: number; value: number };
@@ -29,6 +43,7 @@ export interface OcrResponse {
   merchant_detection_sources?: { value: string; confidence: number };
   raw_trip_header?: string;
   raw_text_array?: string[];
+  gemini_raw_response?: string;
 }
 
 export interface ProcessedReceipt {
