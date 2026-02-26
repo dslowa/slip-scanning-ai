@@ -58,9 +58,11 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
         })) || []
     };
 
-    // Extract diagnostics from raw_data (stored as { ...ocrResult, _diagnostics: {...} })
+    // Extract diagnostics and timing from raw_data
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const diagnostics = (receipt.raw_data as any)?._diagnostics ?? null;
+    const rawData = receipt.raw_data as any;
+    const diagnostics = rawData?._diagnostics ?? null;
+    const timing = rawData?._timing ?? null;
 
     return (
         <div className="space-y-6">
@@ -184,17 +186,38 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
                                 )}
                             </div>
                             {diagnostics && (
-                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                    diagnostics.rules.every((r: { passed: boolean }) => r.passed)
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${diagnostics.rules.every((r: { passed: boolean }) => r.passed)
                                         ? "bg-green-100 text-green-800"
                                         : "bg-yellow-100 text-yellow-800"
-                                }`}>
+                                    }`}>
                                     {diagnostics.rules.filter((r: { passed: boolean }) => !r.passed).length === 0
                                         ? "All checks passed"
                                         : `${diagnostics.rules.filter((r: { passed: boolean }) => !r.passed).length} check(s) failed`}
                                 </span>
                             )}
                         </div>
+
+                        {/* Timing bar */}
+                        {timing && (
+                            <div className="px-4 py-3 border-b border-border bg-muted/30 grid grid-cols-4 gap-2 text-center">
+                                {[
+                                    { label: "OCR", ms: timing.ocr_ms },
+                                    { label: "Dup check", ms: timing.duplicate_check_ms },
+                                    { label: "DB inserts", ms: timing.db_insert_ms },
+                                    { label: "Total", ms: timing.total_ms },
+                                ].map(({ label, ms }) => (
+                                    <div key={label}>
+                                        <p className="text-xs text-muted">{label}</p>
+                                        <p className={`text-sm font-semibold ${label === "Total"
+                                                ? ms < 5000 ? "text-green-600" : ms < 8000 ? "text-yellow-600" : "text-red-600"
+                                                : "text-foreground"
+                                            }`}>
+                                            {ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         <div className="p-4 space-y-4">
                             {!diagnostics ? (

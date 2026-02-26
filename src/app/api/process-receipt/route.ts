@@ -165,6 +165,14 @@ export async function POST(request: Request) {
 
         const timing = { ocr_ms: ocrMs, duplicate_check_ms: dupMs, db_insert_ms: dbMs, total_ms: totalMs };
 
+        // Persist timing into raw_data so the slip detail page can display it.
+        // Fire-and-forget — don't block the response on this.
+        supabase
+            .from("receipts")
+            .update({ raw_data: { ...ocrResult, _diagnostics: diagnostics, _timing: timing } })
+            .eq("id", receiptCallback.id)
+            .then(({ error }) => { if (error) console.error("Failed to persist timing:", error); });
+
         return NextResponse.json({
             success: true,
             receiptId: receiptCallback.id,
