@@ -107,9 +107,9 @@ export interface Receipt {
   image_url: string;
   image_title?: string;
   created_at: string;
-  raw_data?: any;
+  raw_data?: Record<string, unknown>;
   is_verified?: boolean;
-  corrected_data?: any;
+  corrected_data?: Record<string, unknown>;
   recommended_action?: string;
   fraud_risk_level?: string;
   moderation_status?: string;

@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface ReceiptCorrectionPanelProps {
     receiptId: string;
-    initialData: any;
+    initialData: unknown;
     isVerified: boolean;
-    correctedData: any;
+    correctedData: unknown;
 }
 
 export default function ReceiptCorrectionPanel({
@@ -18,9 +18,14 @@ export default function ReceiptCorrectionPanel({
 }: ReceiptCorrectionPanelProps) {
     const router = useRouter();
     const [isVerified, setIsVerified] = useState(initialIsVerified);
-    const [jsonInput, setJsonInput] = useState(
-        JSON.stringify(initialCorrectedData || initialData, null, 2)
-    );
+    const [jsonInput, setJsonInput] = useState(() => {
+        try {
+            return JSON.stringify(initialCorrectedData || initialData || {}, null, 2);
+        } catch (e) {
+            console.error("Failed to stringify receipt data:", e);
+            return "{}";
+        }
+    });
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +37,7 @@ export default function ReceiptCorrectionPanel({
             let parsedJson = null;
             try {
                 parsedJson = JSON.parse(jsonInput);
-            } catch (e) {
+            } catch {
                 throw new Error("Invalid JSON format. Please check your edits.");
             }
 

@@ -14,7 +14,7 @@ export async function PATCH(
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY! || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        const updateData: any = {};
+        const updateData: { is_verified?: boolean; corrected_data?: Record<string, unknown> } = {};
         if (typeof is_verified === "boolean") updateData.is_verified = is_verified;
         if (corrected_data !== undefined) updateData.corrected_data = corrected_data;
 
