@@ -44,6 +44,11 @@ export interface OcrResponse {
   raw_trip_header?: string;
   raw_text_array?: string[];
   gemini_raw_response?: string;
+  usage?: {
+    prompt_tokens: number;
+    candidates_tokens: number;
+    total_tokens: number;
+  };
 }
 
 export interface ProcessedReceipt {

@@ -35,13 +35,18 @@ export default function ReceiptCorrectionPanel({
 
     const hasUnsavedChanges = jsonInput !== lastSavedJson;
 
-    // Synchronize with server if props change (e.g. after router.refresh)
+    // Synchronize with server ONLY if the receipt actually changes or if the server's corrected data/verified status changes
+    // We avoid using 'initialData' in dependencies because it's a new object reference on every render in the parent.
     React.useEffect(() => {
+        const currentCorrectedString = JSON.stringify(initialCorrectedData || initialData || {}, null, 2);
+
+        // Only update local state if we are loading a new receipt OR if the server data has actually changed
+        // from what we last thought was saved.
+        setJsonInput(currentCorrectedString);
+        setLastSavedJson(currentCorrectedString);
         setIsVerified(initialIsVerified);
-        const currentDataString = JSON.stringify(initialCorrectedData || initialData || {}, null, 2);
-        setJsonInput(currentDataString);
-        setLastSavedJson(currentDataString);
-    }, [initialIsVerified, initialCorrectedData, initialData]);
+
+    }, [receiptId, initialIsVerified, initialCorrectedData]); // Removed initialData from dependencies
 
     const handleSave = async (verifiedStatus?: boolean) => {
         setIsSaving(true);

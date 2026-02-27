@@ -174,6 +174,11 @@ Required JSON Structure:
                 time: { confidence: 0.9, value: data.time },
                 merchant_detection_sources: { value: data.retailer, confidence: 0.9 },
                 gemini_raw_response: text,
+                usage: response.usageMetadata ? {
+                    prompt_tokens: response.usageMetadata.promptTokenCount,
+                    candidates_tokens: response.usageMetadata.candidatesTokenCount,
+                    total_tokens: response.usageMetadata.totalTokenCount,
+                } : undefined
             } as OcrResponse;
 
         } catch (parseError) {
