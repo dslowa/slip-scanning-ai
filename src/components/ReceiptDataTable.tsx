@@ -23,7 +23,8 @@ export default function ReceiptDataTable({ initialReceipts }: ReceiptDataTablePr
             (receipt.retailer?.toLowerCase() || "").includes(query) ||
             (receipt.image_title?.toLowerCase() || "").includes(query) ||
             (receipt.date?.toLowerCase() || "").includes(query) ||
-            receipt.total_amount.toString().includes(query)
+            receipt.total_amount.toString().includes(query) ||
+            new Date(receipt.created_at).toLocaleDateString().includes(query)
         );
     });
 
@@ -154,8 +155,9 @@ export default function ReceiptDataTable({ initialReceipts }: ReceiptDataTablePr
                             <tr>
                                 <th className="p-4 font-medium text-muted-foreground w-12 text-center">#</th>
                                 <th className="p-4 font-medium text-muted-foreground">Retailer</th>
-                                <th className="p-4 font-medium text-muted-foreground">Date</th>
+                                <th className="p-4 font-medium text-muted-foreground">Slip Date</th>
                                 <th className="p-4 font-medium text-muted-foreground text-right">Total</th>
+                                <th className="p-4 font-medium text-muted-foreground">Uploaded</th>
                                 <th className="p-4 font-medium text-muted-foreground">Image Title</th>
                                 <th className="p-4 font-medium text-muted-foreground text-center">Status</th>
                                 <th className="p-4 font-medium text-muted-foreground text-right">Actions</th>
@@ -175,7 +177,16 @@ export default function ReceiptDataTable({ initialReceipts }: ReceiptDataTablePr
                                         <td className="p-4 font-medium">{receipt.retailer || "Unknown"}</td>
                                         <td className="p-4 text-muted">{receipt.date || "N/A"}</td>
                                         <td className="p-4 text-right font-medium">R{receipt.total_amount}</td>
-                                        <td className="p-4 text-muted truncate max-w-[200px]" title={receipt.image_title}>
+                                        <td className="p-4 text-muted whitespace-nowrap">
+                                            {new Date(receipt.created_at).toLocaleDateString("en-GB", {
+                                                day: "2-digit",
+                                                month: "2-digit",
+                                                year: "numeric",
+                                                hour: "2-digit",
+                                                minute: "2-digit"
+                                            })}
+                                        </td>
+                                        <td className="p-4 text-muted truncate max-w-[150px]" title={receipt.image_title}>
                                             {receipt.image_title || "N/A"}
                                         </td>
                                         <td className="p-4 text-center">
