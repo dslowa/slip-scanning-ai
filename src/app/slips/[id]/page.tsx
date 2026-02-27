@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { formatDateToMMDDYYYY, formatDateToDDMMYYYY } from "@/lib/utils";
 import ExportButtons from "@/components/ExportButtons";
 import ReceiptImage from "@/components/ReceiptImage";
+import ReceiptCorrectionPanel from "@/components/ReceiptCorrectionPanel";
 
 export const dynamic = 'force-dynamic';
 
@@ -78,10 +79,17 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
                 </div>
                 <div className="flex items-center gap-4">
                     <ExportButtons data={exportData} filename={`receipt-${receipt.id}`} />
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${receipt.is_duplicate ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-                        }`}>
-                        {receipt.is_duplicate ? "Duplicate" : "Valid Receipt"}
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${receipt.is_duplicate ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+                            }`}>
+                            {receipt.is_duplicate ? "Duplicate" : "Valid Receipt"}
+                        </span>
+                        {receipt.is_verified && (
+                            <span className="flex items-center gap-1 text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-200">
+                                <span>✓</span> Verified Correct
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -164,15 +172,25 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
                         </ul>
                     </div>
 
-                    {/* JSON Export View */}
-                    <div className="bg-card border border-border rounded-xl p-6">
-                        <h2 className="text-lg font-semibold mb-3">JSON Export</h2>
-                        <div className="bg-muted p-4 rounded-lg overflow-x-auto">
+                    {/* Verification & Manual Correction Section */}
+                    <ReceiptCorrectionPanel
+                        receiptId={receipt.id}
+                        initialData={exportData}
+                        isVerified={receipt.is_verified || false}
+                        correctedData={receipt.corrected_data}
+                    />
+
+                    {/* Original JSON Export View (Collapsed) */}
+                    <details className="bg-card border border-border rounded-xl p-4 overflow-hidden">
+                        <summary className="text-sm font-medium cursor-pointer text-muted-foreground hover:text-foreground">
+                            View Original AI JSON Export
+                        </summary>
+                        <div className="mt-3 bg-muted p-4 rounded-lg overflow-x-auto">
                             <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap">
                                 {JSON.stringify(exportData, null, 2)}
                             </pre>
                         </div>
-                    </div>
+                    </details>
 
                     {/* OCR Diagnostics */}
                     <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -187,8 +205,8 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
                             </div>
                             {diagnostics && (
                                 <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${diagnostics.rules.every((r: { passed: boolean }) => r.passed)
-                                        ? "bg-green-100 text-green-800"
-                                        : "bg-yellow-100 text-yellow-800"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-yellow-100 text-yellow-800"
                                     }`}>
                                     {diagnostics.rules.filter((r: { passed: boolean }) => !r.passed).length === 0
                                         ? "All checks passed"
@@ -209,8 +227,8 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
                                     <div key={label}>
                                         <p className="text-xs text-muted">{label}</p>
                                         <p className={`text-sm font-semibold ${label === "Total"
-                                                ? ms < 5000 ? "text-green-600" : ms < 8000 ? "text-yellow-600" : "text-red-600"
-                                                : "text-foreground"
+                                            ? ms < 5000 ? "text-green-600" : ms < 8000 ? "text-yellow-600" : "text-red-600"
+                                            : "text-foreground"
                                             }`}>
                                             {ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`}
                                         </p>

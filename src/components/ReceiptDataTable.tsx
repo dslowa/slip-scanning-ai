@@ -179,13 +179,20 @@ export default function ReceiptDataTable({ initialReceipts }: ReceiptDataTablePr
                                             {receipt.image_title || "N/A"}
                                         </td>
                                         <td className="p-4 text-center">
-                                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${receipt.is_duplicate ? "bg-red-100 text-red-800" :
-                                                receipt.is_blurry ? "bg-yellow-100 text-yellow-800" :
-                                                    "bg-green-100 text-green-800"
-                                                }`}>
-                                                {receipt.is_duplicate ? "Duplicate" :
-                                                    receipt.is_blurry ? "Blurry" : "Processed"}
-                                            </span>
+                                            <div className="flex flex-col items-center gap-1">
+                                                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${receipt.is_duplicate ? "bg-red-100 text-red-800" :
+                                                    receipt.is_blurry ? "bg-yellow-100 text-yellow-800" :
+                                                        "bg-green-100 text-green-800"
+                                                    }`}>
+                                                    {receipt.is_duplicate ? "Duplicate" :
+                                                        receipt.is_blurry ? "Blurry" : "Processed"}
+                                                </span>
+                                                {receipt.is_verified && (
+                                                    <span className="text-green-600 font-bold text-xs" title="Verified Correct">
+                                                        ✓ Correct
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="p-4 text-right font-medium flex justify-end gap-3 items-center">
                                             <Link
