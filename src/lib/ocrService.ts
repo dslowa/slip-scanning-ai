@@ -130,6 +130,7 @@ Required JSON Structure:
         ]);
 
         const response = await result.response;
+        console.log("Gemini Full Usage Metadata:", response.usageMetadata);
         const text = response.text();
         console.log("Gemini Raw Response:", text); // Debug log
 

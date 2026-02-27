@@ -240,23 +240,27 @@ export default async function ReceiptDetailsPage({ params }: { params: { id: str
 
                         {/* Token usage and estimated cost */}
                         {usage && (
-                            <div className="px-4 py-3 border-b border-border bg-blue-50/20 grid grid-cols-4 gap-2 text-center">
+                            <div className="px-4 py-3 border-b border-border bg-blue-50/20 grid grid-cols-5 gap-2 text-center">
                                 <div>
-                                    <p className="text-[10px] text-muted uppercase font-bold tracking-tight">Input Tokens</p>
+                                    <p className="text-[9px] text-muted uppercase font-bold tracking-tight">Text (In)</p>
                                     <p className="text-sm font-semibold">{usage.prompt_tokens.toLocaleString()}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] text-muted uppercase font-bold tracking-tight">Output Tokens</p>
+                                    <p className="text-[9px] text-muted uppercase font-bold tracking-tight">Image (In)</p>
+                                    <p className="text-sm font-semibold">{(usage.total_tokens - (usage.prompt_tokens + usage.candidates_tokens)).toLocaleString()}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[9px] text-muted uppercase font-bold tracking-tight">Output</p>
                                     <p className="text-sm font-semibold">{usage.candidates_tokens.toLocaleString()}</p>
                                 </div>
-                                <div>
-                                    <p className="text-[10px] text-muted uppercase font-bold tracking-tight">Total Tokens</p>
-                                    <p className="text-sm font-semibold">{usage.total_tokens.toLocaleString()}</p>
+                                <div className="border-l border-blue-200">
+                                    <p className="text-[9px] text-muted uppercase font-bold tracking-tight">Total</p>
+                                    <p className="text-sm font-bold">{usage.total_tokens.toLocaleString()}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] text-muted uppercase font-bold tracking-tight">Est. Cost</p>
+                                    <p className="text-[9px] text-muted uppercase font-bold tracking-tight">Est. Cost</p>
                                     <p className="text-sm font-bold text-blue-600">
-                                        R{((usage.prompt_tokens / 1000000 * 0.075 + usage.candidates_tokens / 1000000 * 0.30) * 19).toFixed(4)}
+                                        R{(((usage.total_tokens - usage.candidates_tokens) / 1000000 * 0.075 + usage.candidates_tokens / 1000000 * 0.30) * 19).toFixed(4)}
                                     </p>
                                 </div>
                             </div>
