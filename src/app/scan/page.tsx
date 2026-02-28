@@ -25,16 +25,43 @@ export default function ScanPage() {
     const [queue, setQueue] = useState<FileItem[]>([]);
     const [processing, setProcessing] = useState(false);
     const [concurrency, setConcurrency] = useState(3);
+    const [isDragging, setIsDragging] = useState(false);
+
+    const addFilesToQueue = (files: FileList | File[]) => {
+        const newFiles = Array.from(files).map((file) => ({
+            id: Math.random().toString(36).substring(7),
+            file,
+            status: "idle" as UploadStatus,
+            progress: 0,
+        }));
+        setQueue((prev) => [...prev, ...newFiles]);
+    };
 
     const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            const newFiles = Array.from(e.target.files).map((file) => ({
-                id: Math.random().toString(36).substring(7),
-                file,
-                status: "idle" as UploadStatus,
-                progress: 0,
-            }));
-            setQueue((prev) => [...prev, ...newFiles]);
+            addFilesToQueue(e.target.files);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            addFilesToQueue(e.dataTransfer.files);
         }
     };
 
@@ -144,7 +171,15 @@ export default function ScanPage() {
             </header>
 
             {/* Upload Area */}
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:border-blue-500 transition-colors bg-gray-50">
+            <div
+                className={`border-2 border-dashed rounded-xl p-12 text-center transition-all ${isDragging
+                    ? "border-blue-500 bg-blue-50 scale-[1.01]"
+                    : "border-gray-300 bg-gray-50 hover:border-blue-400"
+                    }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+            >
                 <input
                     type="file"
                     multiple
@@ -154,8 +189,10 @@ export default function ScanPage() {
                     id="file-upload"
                 />
                 <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
-                    <span className="text-4xl mb-4">📄</span>
-                    <span className="text-xl font-medium text-gray-700">Drop receipts here or click to upload</span>
+                    <span className="text-4xl mb-4">{isDragging ? "📥" : "📄"}</span>
+                    <span className="text-xl font-medium text-gray-700">
+                        {isDragging ? "Drop to upload" : "Drop receipts here or click to upload"}
+                    </span>
                     <span className="text-sm text-gray-500 mt-2">Supports multiple files (Bulk Upload)</span>
                 </label>
             </div>
