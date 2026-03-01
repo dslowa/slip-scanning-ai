@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { processReceiptWithOCR } from "@/lib/ocrService";
 import { parseReceipt } from "@/lib/receiptParams";
-import { formatDateToMMDDYYYY } from "@/lib/utils";
-import { ExportedReceipt } from "@/lib/types";
 import { evaluateDiagnostics } from "@/lib/ocrDiagnostics";
 
 export const dynamic = 'force-dynamic';

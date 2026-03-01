@@ -210,12 +210,13 @@ export default function ScanPage() {
                                     progress: Math.min(95, (i.progress || 60) + 2)
                                 } : i));
                             }
-                        } catch (pollErr: any) {
+                        } catch (pollErr: unknown) {
                             clearInterval(pollInterval);
+                            const errorMessage = pollErr instanceof Error ? pollErr.message : "Unknown polling error";
                             setQueue(q => q.map(i => i.id === item.id ? {
                                 ...i,
                                 status: "error",
-                                error: pollErr.message
+                                error: errorMessage
                             } : i));
                         }
                     }, 3000);

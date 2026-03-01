@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = 'force-dynamic';
@@ -41,8 +42,13 @@ export default async function ReviewPage() {
                     receipts.map((receipt) => (
                         <div key={receipt.id} className="bg-card border border-border rounded-xl overflow-hidden flex flex-col">
                             <div className="h-48 bg-gray-100 relative overflow-hidden group">
-                                {/* Use img tag for simplicity or Next Image if domain allowlisted */}
-                                <img src={receipt.image_url} alt="Receipt" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                {/* Use Next Image for optimization */}
+                                <Image
+                                    src={receipt.image_url}
+                                    alt="Receipt"
+                                    fill
+                                    className="object-cover transition-transform group-hover:scale-105"
+                                />
                                 <div className="absolute top-2 right-2 flex gap-1">
                                     {receipt.is_blurry && <span className="px-2 py-1 bg-yellow-500/90 text-white text-xs rounded font-bold">BLURRY</span>}
                                     {receipt.is_screen && <span className="px-2 py-1 bg-blue-500/90 text-white text-xs rounded font-bold">SCREEN</span>}
