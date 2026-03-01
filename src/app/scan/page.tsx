@@ -21,18 +21,67 @@ interface FileItem {
     };
 }
 
+const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                let width = img.width;
+                let height = img.height;
+                const maxDim = 1600;
+
+                if (width > height && width > maxDim) {
+                    height *= maxDim / width;
+                    width = maxDim;
+                } else if (height > maxDim) {
+                    width *= maxDim / height;
+                    height = maxDim;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                ctx?.drawImage(img, 0, 0, width, height);
+                canvas.toBlob(
+                    (blob) => {
+                        if (blob) {
+                            resolve(new File([blob], file.name, { type: "image/jpeg" }));
+                        } else {
+                            resolve(file);
+                        }
+                    },
+                    "image/jpeg",
+                    0.8
+                );
+            };
+            img.onerror = () => resolve(file);
+        };
+        reader.onerror = () => resolve(file);
+    });
+};
+
 export default function ScanPage() {
     const [queue, setQueue] = useState<FileItem[]>([]);
     const [processing, setProcessing] = useState(false);
     const [concurrency, setConcurrency] = useState(3);
     const [isDragging, setIsDragging] = useState(false);
 
-    const addFilesToQueue = (files: FileList | File[]) => {
-        const newFiles = Array.from(files).map((file) => ({
-            id: Math.random().toString(36).substring(7),
-            file,
-            status: "idle" as UploadStatus,
-            progress: 0,
+    const addFilesToQueue = async (files: FileList | File[]) => {
+        const fileArray = Array.from(files);
+        // Process in parallel to avoid blocking the UI too much, but still show feedback
+        const newFiles = await Promise.all(fileArray.map(async (file) => {
+            // Only compress if it's an image
+            const processedFile = file.type.startsWith("image/") ? await compressImage(file) : file;
+            return {
+                id: Math.random().toString(36).substring(7),
+                file: processedFile,
+                status: "idle" as UploadStatus,
+                progress: 0,
+            };
         }));
         setQueue((prev) => [...prev, ...newFiles]);
     };
@@ -108,7 +157,7 @@ export default function ScanPage() {
                         .from('receipts')
                         .getPublicUrl(fileName);
 
-                    // API Call
+                    // API Call - returns immediately with receiptId
                     const res = await fetch("/api/process-receipt", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -121,13 +170,55 @@ export default function ScanPage() {
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.error || "API error");
 
-                    setQueue(q => q.map(i => i.id === item.id ? {
-                        ...i,
-                        status: "done",
-                        progress: 100,
-                        resultId: data.receiptId,
-                        data: data.data
-                    } : i));
+                    const receiptId = data.receiptId;
+                    setQueue(q => q.map(i => i.id === item.id ? { ...i, resultId: receiptId, progress: 60 } : i));
+
+                    // Polling for Result
+                    const pollInterval = setInterval(async () => {
+                        try {
+                            const { data: receipt, error: pollError } = await supabase
+                                .from("receipts")
+                                .select("*")
+                                .eq("id", receiptId)
+                                .single();
+
+                            if (pollError) throw pollError;
+
+                            // If retailer is no longer "Scanning...", it's done or errored
+                            if (receipt.retailer !== "Scanning...") {
+                                clearInterval(pollInterval);
+
+                                if (receipt.retailer === "ERROR") {
+                                    throw new Error(receipt.raw_data?.error || "OCR failed in background");
+                                }
+
+                                setQueue(q => q.map(i => i.id === item.id ? {
+                                    ...i,
+                                    status: "done",
+                                    progress: 100,
+                                    data: {
+                                        retailer: receipt.retailer,
+                                        date: receipt.date,
+                                        total: receipt.total_amount,
+                                        itemCount: 0 // Optional: fetch count if needed
+                                    }
+                                } : i));
+                            } else {
+                                // Still scanning, maybe wiggle progress?
+                                setQueue(q => q.map(i => i.id === item.id ? {
+                                    ...i,
+                                    progress: Math.min(95, (i.progress || 60) + 2)
+                                } : i));
+                            }
+                        } catch (pollErr: any) {
+                            clearInterval(pollInterval);
+                            setQueue(q => q.map(i => i.id === item.id ? {
+                                ...i,
+                                status: "error",
+                                error: pollErr.message
+                            } : i));
+                        }
+                    }, 3000);
 
                 } catch (e: unknown) {
                     const message = e instanceof Error ? e.message : "Unknown error";

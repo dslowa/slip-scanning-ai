@@ -3,101 +3,26 @@ import { OcrResponse } from "./types";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-export async function processReceiptWithOCR(imageUrl: string): Promise<OcrResponse> {
-    if (!GEMINI_API_KEY) {
-        console.warn("GEMINI_API_KEY not found. Using Mock Service.");
-        return processReceiptWithMock();
-    }
-
-    try {
-        console.log("Processing with Gemini Flash...");
-        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-
-        // Detect MIME type from URL — no server-side download needed
-        const mimeType = imageUrl.toLowerCase().includes(".png") ? "image/png" : "image/jpeg";
-
-        const prompt = `
+const SYSTEM_PROMPT = `
 You are a South African grocery till slip processor. Analyse this receipt image and extract structured data.
-Return ONLY valid JSON — no markdown, no code fences, no explanation.
+Return valid JSON according to the specified structure.
 
 CRITICAL — DISCOUNT LINE HANDLING:
-
 South African grocery slips (especially Shoprite, Checkers, and Checkers Hyper) show loyalty card discounts as SEPARATE line items with NEGATIVE prices. These discount lines typically start with "XTRASAVE", "SAVE", "DISC", "PROMO", "LOYALTY", "SMART SHOPPER", "WCARD", or contain negative values like -R5.00.
 
-YOU MUST FOLLOW THESE RULES:
-
-RULE 1: NEVER return a discount line as its own item. Discount lines must ALWAYS be merged into the product(s) they apply to.
-
-RULE 2: A discount line applies to the product(s) IMMEDIATELY ABOVE it. Merge the discount by:
-- Subtracting the discount from the product's totalPrice
-- Recording the discount amount in the "discount" field
-- The "totalPrice" must reflect what the customer ACTUALLY PAID after the discount
-
-RULE 3: SIMPLE DISCOUNT (one discount, one product above):
-On the slip:
-  MIAMI ATCHR 780G          R84.99
-  XTRASAVE ATCHAR           -R5.00
-Return as ONE item:
-{
-  "description": "MIAMI ATCHR 780G",
-  "quantity": 1,
-  "unitPrice": 84.99,
-  "totalPrice": 79.99,
-  "discount": 5.00,
-  "discountDescription": "XTRASAVE ATCHAR"
-}
-
-RULE 4: MULTI-PRODUCT DISCOUNT (one discount applies to multiple products above it):
-Sometimes a single discount line covers 2 or more products listed above it. This happens with "buy X get Y off" or combo deals. In this case, apply the FULL discount to the LAST product before the discount line, and note in discountDescription that it's a multi-buy discount.
-
-Example on the slip:
-  DORITOS 145G              R23.99
-  DORITOS 145G              R23.99
-  DORITOS 145G              R23.99
-  XTRASAVE DORITOS          -R12.97
-Return as:
-{"description":"DORITOS 145G","quantity":1,"unitPrice":23.99,"totalPrice":23.99,"discount":0,"discountDescription":null},
-{"description":"DORITOS 145G","quantity":1,"unitPrice":23.99,"totalPrice":23.99,"discount":0,"discountDescription":null},
-{"description":"DORITOS 145G","quantity":1,"unitPrice":23.99,"totalPrice":11.02,"discount":12.97,"discountDescription":"XTRASAVE DORITOS (multi-buy)"}
-
-RULE 5: CROSS-PRODUCT DISCOUNT (one discount covers different product types above it):
-Example:
-  BACON SHLDR 200G   2 @    R85.98
-  BACON DICD 200G    2 @    R79.98
-  XTRASAVE BACON            -R34.00
-Apply the full discount to the last product before the discount line:
-{"description":"BACON SHLDR 200G","quantity":2,"unitPrice":42.99,"totalPrice":85.98,"discount":0,"discountDescription":null},
-{"description":"BACON DICD 200G","quantity":2,"unitPrice":39.99,"totalPrice":45.98,"discount":34.00,"discountDescription":"XTRASAVE BACON (multi-buy)"}
-
-RULE 6: The sum of ALL item totalPrice values MUST equal the receipt total. Discrepancies of up to R0.10 are acceptable due to cash rounding (see Rule 8).
-
-RULE 7: Items with NO discount should have discount: 0 and discountDescription: null.
-
-RULE 8: SOUTH AFRICAN CASH ROUNDING:
-Cash transactions are rounded to the nearest 5 or 10 cents (e.g., R437.12 becomes R437.10).
-- If the slip contains a "Rounding", "Round", or "Cash Round" line item, DO NOT return it as a product.
-- If the sum of items (e.g., R437.12) differs from the "Total" (e.g., R437.10) by 5c or less, accept the item sum as the source of truth for the items.
-- The 'total' field in the JSON should reflect the final Total as printed on the slip.
-
-EXTRACTION RULES:
-- South African currency is ZAR. All amounts as numbers, no symbols.
-- Date formats: DD/MM/YYYY, DD-MM-YYYY. Return as YYYY-MM-DD.
-- Extract quantities from "2 @", "x2", "QTY 2" notations.
-- Never hallucinate — use null if unreadable. If the date is not clearly visible or is cut off, return "date": null.
-- CRITICAL: DO NOT use today's date (2026-02-26) or any current date as a fallback. If you cannot find a date PRINTED on the slip, return null.
-- STRICT LEGIBILITY RULE: Only extract the date if it is CLEARLY READABLE and distinct. If the date text is very small, faint, blurry, or low-contrast (like at the bottom of a faded slip), treat it as UNREADABLE and return "date": null and "date_is_printed": false. Do not guess or "hunt" for unreadable dates.
-
-QUALITY CHECKS:
-- is_blurry: true if image too blurry to read
-- is_screen: true if screenshot or photo of a screen
-- is_receipt: false if not a receipt
+RULES:
+1. NEVER return a discount line as its own item. Merge it into the product(s) IMMEDIATELY ABOVE it.
+2. The "totalPrice" of a product must reflect what the customer ACTUALLY PAID after the discount.
+3. Record the discount amount in the "discount" field.
+4. The sum of ALL item totalPrice values MUST equal the receipt total (within R0.10 due to rounding).
+5. If you cannot find a date PRINTED on the slip, return "date": null. DO NOT guess or use current date.
+6. STRICT LEGIBILITY: Only extract the date if clearly readable. If faint or blurry, return null.
 
 Required JSON Structure:
 {
     "retailer": "string",
     "date": "string (YYYY-MM-DD) or null",
-    "date_is_printed": "boolean (true if the date was clearly seen and extracted from the image, false if not found)",
+    "date_is_printed": boolean,
     "time": "string (HH:MM) or null",
     "total": number,
     "paymentMethods": [{"method": "string", "amount": number}],
@@ -117,28 +42,53 @@ Required JSON Structure:
 }
 `;
 
-        // Pass image URL directly to Gemini — it fetches the image itself.
-        // This removes a full server-side download+encode step (~0.3–1s saved).
+export async function processReceiptWithOCR(imageUrl: string): Promise<OcrResponse> {
+    if (!GEMINI_API_KEY) {
+        console.warn("GEMINI_API_KEY not found. Using Mock Service.");
+        return processReceiptWithMock();
+    }
+
+    try {
+        console.log("Processing with Gemini Flash (JSON Mode)...");
+        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({
+            model: "gemini-flash-latest",
+            systemInstruction: SYSTEM_PROMPT,
+            generationConfig: {
+                responseMimeType: "application/json",
+            }
+        });
+
+        // 1. Fetch image and convert to base64
+        const tFetchStart = Date.now();
+        const imgResponse = await fetch(imageUrl);
+        if (!imgResponse.ok) throw new Error(`Failed to fetch image from Supabase: ${imgResponse.statusText}`);
+        const buffer = await imgResponse.arrayBuffer();
+        const base64Data = Buffer.from(buffer).toString("base64");
+        const mimeType = imgResponse.headers.get("content-type") || "image/jpeg";
+        console.log(`[OCR Timing] Fetch + Base64: ${Date.now() - tFetchStart}ms`);
+
+        // 2. Call Gemini with inlineData
+        const tAiStart = Date.now();
         const result = await model.generateContent([
-            prompt,
             {
-                fileData: {
-                    fileUri: imageUrl,
+                inlineData: {
+                    data: base64Data,
                     mimeType,
                 },
             },
+            "Extract receipt data in JSON format."
         ]);
 
         const response = await result.response;
-        console.log("Gemini Full Usage Metadata:", response.usageMetadata);
         const text = response.text();
-        console.log("Gemini Raw Response:", text); // Debug log
-
-        // Clean markdown code blocks if present
-        const jsonString = text.replace(/```json/g, "").replace(/```/g, "").trim();
+        console.log(`[OCR Timing] Gemini API: ${Date.now() - tAiStart}ms`);
+        console.log(`[OCR Stats] Response length: ${text.length} chars`);
+        console.log("Gemini Usage:", response.usageMetadata);
 
         try {
-            const data = JSON.parse(jsonString);
+            const data = JSON.parse(text);
+            console.log(`[OCR Stats] Extracted items count: ${data.items?.length || 0}`);
 
             // Map to internal OcrResponse structure
             return {
@@ -147,7 +97,7 @@ Required JSON Structure:
                 isDigital: false,
                 isFraudulent: false,
                 is_blurry: data.is_blurry || false,
-                is_receipt: data.is_receipt !== false, // Default true
+                is_receipt: data.is_receipt !== false,
                 is_screen: data.is_screen || false,
                 ocr_confidence: 0.9,
                 paymentMethods: (data.paymentMethods || []).map((pm: { amount: number; method: string }) => ({
@@ -184,7 +134,7 @@ Required JSON Structure:
 
         } catch (parseError) {
             console.error("JSON Parse Error:", parseError);
-            console.error("Failed JSON String:", jsonString);
+            console.error("Raw text:", text);
             throw new Error("Failed to parse OCR response");
         }
 
