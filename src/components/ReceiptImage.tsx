@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, MouseEvent, WheelEvent } from "react";
+import { useState, useRef, MouseEvent, WheelEvent, useCallback } from "react";
 
 interface ReceiptImageProps {
     src: string;
@@ -12,17 +12,17 @@ export default function ReceiptImage({ src, alt }: ReceiptImageProps) {
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const hasDragged = useRef(false);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
 
     const handleZoomToggle = (e: MouseEvent) => {
-        // Only toggle zoom if not dragging
-        if (e.detail > 1) return; // Prevent double click zoom if we want custom behavior
+        // Prevent click if we were just dragging
+        if (hasDragged.current) return;
 
         if (scale === 1) {
             setScale(2);
-            // Center zoom on click position relative to image
             const rect = containerRef.current?.getBoundingClientRect();
             if (rect) {
                 const x = (e.clientX - rect.left) / rect.width;
@@ -41,16 +41,22 @@ export default function ReceiptImage({ src, alt }: ReceiptImageProps) {
     const handleMouseDown = (e: MouseEvent) => {
         if (scale > 1) {
             setIsDragging(true);
+            hasDragged.current = false;
             setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
         }
     };
 
     const handleMouseMove = (e: MouseEvent) => {
         if (isDragging && scale > 1) {
-            setPosition({
-                x: e.clientX - dragStart.x,
-                y: e.clientY - dragStart.y,
-            });
+            const newX = e.clientX - dragStart.x;
+            const newY = e.clientY - dragStart.y;
+
+            // Set dragged flag if we've moved significantly
+            if (Math.abs(newX - position.x) > 2 || Math.abs(newY - position.y) > 2) {
+                hasDragged.current = true;
+            }
+
+            setPosition({ x: newX, y: newY });
         }
     };
 
@@ -58,20 +64,44 @@ export default function ReceiptImage({ src, alt }: ReceiptImageProps) {
         setIsDragging(false);
     };
 
-    const handleWheel = (e: WheelEvent) => {
-        if (e.ctrlKey) {
-            e.preventDefault();
-            const delta = e.deltaY > 0 ? 0.9 : 1.1;
-            const newScale = Math.min(Math.max(scale * delta, 1), 5);
+    const handleWheel = useCallback((e: WheelEvent) => {
+        // Stop the page from scrolling while zooming
+        e.preventDefault();
+
+        const container = containerRef.current;
+        if (!container) return;
+
+        const rect = container.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Calculate zoom factor
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        const newScale = Math.min(Math.max(scale * delta, 1), 5);
+
+        if (newScale !== scale) {
+            // Zoom centered on mouse
+            const scaleRatio = newScale / scale;
+
+            // Move position to keep mouse point fixed
+            const newX = mouseX - (mouseX - position.x) * scaleRatio;
+            const newY = mouseY - (mouseY - position.y) * scaleRatio;
+
             setScale(newScale);
-            if (newScale === 1) setPosition({ x: 0, y: 0 });
+
+            if (newScale === 1) {
+                setPosition({ x: 0, y: 0 });
+            } else {
+                setPosition({ x: newX, y: newY });
+            }
         }
-    };
+    }, [scale, position]);
 
     return (
         <div
             ref={containerRef}
-            className="relative w-full h-full overflow-hidden cursor-zoom-in bg-gray-950 flex items-center justify-center rounded-xl border border-border"
+            className={`relative w-full h-full overflow-hidden bg-gray-950 flex items-center justify-center rounded-xl border border-border select-none touch-none ${scale > 1 ? (isDragging ? "cursor-grabbing" : "cursor-grab") : "cursor-zoom-in"
+                }`}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
@@ -80,10 +110,10 @@ export default function ReceiptImage({ src, alt }: ReceiptImageProps) {
             onClick={handleZoomToggle}
         >
             <div
-                className="transition-transform duration-200 ease-out select-none pointer-events-none"
+                className="select-none pointer-events-none"
                 style={{
                     transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-                    transition: isDragging ? "none" : "transform 0.2s ease-out",
+                    transition: isDragging ? "none" : "transform 0.1s ease-out",
                 }}
             >
                 <img
