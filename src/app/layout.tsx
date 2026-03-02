@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 
@@ -36,6 +37,7 @@ export default function RootLayout({
             {children}
           </div>
         </main>
+        <SpeedInsights />
       </body>
     </html>
   );

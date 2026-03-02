@@ -116,6 +116,7 @@ export default function ReceiptImage({ src, alt }: ReceiptImageProps) {
                     transition: isDragging ? "none" : "transform 0.1s ease-out",
                 }}
             >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     ref={imgRef}
                     src={src}
