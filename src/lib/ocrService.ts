@@ -18,6 +18,9 @@ RULES:
 5. If you cannot find a date PRINTED on the slip, return "date": null. DO NOT guess or use current date.
 6. STRICT LEGIBILITY: Only extract the date if clearly readable. If faint or blurry, return null.
 
+CRITICAL — QUANTITY HANDLING:
+For grocery items sold by weight or any item where the quantity is not a simple integer (e.g. 0.45kg, 2.3kg, 0.500), ALWAYS set "quantity" to 1. In these cases, set the "unitPrice" to be the same as the "totalPrice" for that line item.
+
 Required JSON Structure:
 {
     "retailer": "string",
@@ -111,16 +114,27 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
                     totalPrice: number;
                     discount: number;
                     discountDescription: string | null;
-                }, i: number) => ({
-                    line: i + 1,
-                    price: { confidence: 0.9, value: item.unitPrice },
-                    qty: { confidence: 0.9, value: item.quantity },
-                    rsd: { confidence: 0.9, value: item.description },
-                    totalPrice: { confidence: 0.9, value: item.totalPrice },
-                    product_name: item.description,
-                    discount: item.discount || 0,
-                    discount_description: item.discountDescription || null
-                })),
+                }, i: number) => {
+                    // Normalize quantity: If not an integer, default to 1 and adjust unitPrice
+                    let finalQty = item.quantity;
+                    let finalUnitPrice = item.unitPrice;
+
+                    if (finalQty % 1 !== 0) {
+                        finalQty = 1;
+                        finalUnitPrice = item.totalPrice;
+                    }
+
+                    return {
+                        line: i + 1,
+                        price: { confidence: 0.9, value: finalUnitPrice },
+                        qty: { confidence: 0.9, value: finalQty },
+                        rsd: { confidence: 0.9, value: item.description },
+                        totalPrice: { confidence: 0.9, value: item.totalPrice },
+                        product_name: item.description,
+                        discount: item.discount || 0,
+                        discount_description: item.discountDescription || null
+                    };
+                }),
                 total: { confidence: 0.9, value: data.total },
                 time: { confidence: 0.9, value: data.time },
                 merchant_detection_sources: { value: data.retailer, confidence: 0.9 },
