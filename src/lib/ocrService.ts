@@ -119,7 +119,7 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
                     let finalQty = item.quantity;
                     let finalUnitPrice = item.unitPrice;
 
-                    if (finalQty % 1 !== 0) {
+                    if (typeof finalQty !== 'number' || isNaN(finalQty) || finalQty % 1 !== 0) {
                         finalQty = 1;
                         finalUnitPrice = item.totalPrice;
                     }

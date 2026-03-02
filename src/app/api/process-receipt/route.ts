@@ -3,8 +3,10 @@ import { supabase } from "@/lib/supabase";
 import { processReceiptWithOCR } from "@/lib/ocrService";
 import { parseReceipt } from "@/lib/receiptParams";
 import { evaluateDiagnostics } from "@/lib/ocrDiagnostics";
+import { waitUntil } from "@vercel/functions";
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 // Initialize Supabase Client (moved to shared lib)
 
@@ -35,9 +37,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: initialError.message }, { status: 500 });
         }
 
-        // 2. Start Background Processing (Non-blocking)
-        // We do NOT await this. It fires into the background.
-        (async () => {
+        // 2. Start Background Processing (Non-blocking but guaranteed by Vercel)
+        // We wrap it in waitUntil to inform the serverless environment to not kill it
+        waitUntil((async () => {
             const t0 = Date.now();
             try {
                 console.log(`[Background] Starting OCR for: ${receiptPending.id}`);
@@ -111,7 +113,7 @@ export async function POST(request: Request) {
                     })
                     .eq("id", receiptPending.id);
             }
-        })();
+        })());
 
         // 3. Return Receipt ID immediately
         return NextResponse.json({
