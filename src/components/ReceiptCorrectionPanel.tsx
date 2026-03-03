@@ -46,6 +46,7 @@ export default function ReceiptCorrectionPanel({
         setLastSavedJson(currentCorrectedString);
         setIsVerified(initialIsVerified);
 
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [receiptId, initialIsVerified, initialCorrectedData]); // Removed initialData from dependencies
 
     const handleSave = async (verifiedStatus?: boolean) => {
