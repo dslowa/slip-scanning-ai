@@ -23,7 +23,7 @@ export default function ReceiptDataTable({ initialReceipts }: ReceiptDataTablePr
             (receipt.retailer?.toLowerCase() || "").includes(query) ||
             (receipt.image_title?.toLowerCase() || "").includes(query) ||
             (receipt.date?.toLowerCase() || "").includes(query) ||
-            receipt.total_amount.toString().includes(query) ||
+            (receipt.total_amount?.toString() ?? "").includes(query) ||
             new Date(receipt.created_at).toLocaleDateString().includes(query)
         );
     });
