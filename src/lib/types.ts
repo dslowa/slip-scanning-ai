@@ -26,7 +26,7 @@ export interface OcrProduct {
 
 export interface OcrResponse {
   banner_id: number;
-  date: { confidence: number; value: string };
+  date: { confidence: number; value: string | null };
   isDigital: boolean;
   isFraudulent: boolean;
   is_blurry: boolean;

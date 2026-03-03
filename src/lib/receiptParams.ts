@@ -6,7 +6,7 @@ export function parseReceipt(ocrData: OcrResponse): ProcessedReceipt {
     const retailer = cleanRetailerName(
         ocrData.merchant_detection_sources?.value ||
         ocrData.raw_trip_header ||
-        "Unknown Retailer"
+        "Unknown"
     );
 
     // Extract Date

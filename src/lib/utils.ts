@@ -6,21 +6,41 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function cleanRetailerName(name: string): string {
-    if (!name) return "Unknown Retailer";
+    if (!name) return "Unknown";
 
-    // Basic normalization
     const cleaned = name.trim().toUpperCase();
 
-    // Common adjustments
-    if (cleaned.includes("SPAR")) return "SPAR";
-    if (cleaned.includes("CHECKERS")) return "CHECKERS";
-    if (cleaned.includes("WOOLWORTHS")) return "WOOLWORTHS";
-    if (cleaned.includes("PICK N PAY")) return "PICK N PAY";
-    if (cleaned.includes("SHOPRITE")) return "SHOPRITE";
-    if (cleaned.includes("Clicks")) return "CLICKS"; // Case insensitive check above handles this but good to be explicit
+    // Map of variations to standard chain names
+    const chainMap: Record<string, string> = {
+        "PICK N PAY": "PICK N PAY",
+        "PNP": "PICK N PAY",
+        "CHECKERS": "CHECKERS",
+        "SHOPRITE": "SHOPRITE",
+        "WOOLWORTHS": "WOOLWORTHS",
+        "WOOLIES": "WOOLWORTHS",
+        "SPAR": "SPAR",
+        "KWIKSPAR": "SPAR",
+        "SUPERSPAR": "SPAR",
+        "CLICKS": "CLICKS",
+        "DIS-CHEM": "DIS-CHEM",
+        "DISCHEM": "DIS-CHEM",
+        "MAKRO": "MAKRO",
+        "GAME": "GAME",
+        "BUILDERS": "BUILDERS",
+        "LEROY MERLIN": "LEROY MERLIN",
+        "FOOD LOVERS": "FOOD LOVERS MARKET",
+        "FOOD LOVER'S": "FOOD LOVERS MARKET",
+        "OK FURNITURE": "OK FURNITURE",
+        "OK FOODS": "OK FOODS",
+        "BOXER": "BOXER",
+        "USAVE": "USAVE",
+        "WEST PACK": "WEST PACK LIFESTYLE"
+    };
 
-    // Remove common geometric garbage if OCR fails (e.g. "SPAR 123")
-    // For now simple return is fine
+    for (const [key, value] of Object.entries(chainMap)) {
+        if (cleaned.includes(key)) return value;
+    }
+
     return cleaned;
 }
 
