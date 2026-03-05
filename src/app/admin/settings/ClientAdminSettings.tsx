@@ -12,7 +12,22 @@ type Props = {
 
 const providers = ["gemini", "claude"] as const;
 const models = {
-    gemini: ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-2.0-flash-001", "gemini-1.5-flash-8b", "gemini-2.5-flash"],
+    gemini: [
+        // Gemini 3
+        "gemini-3.1-pro-preview",
+        "gemini-3-flash-preview",
+        // Gemini 2.5
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        // Gemini 2.0
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-001",
+        // Gemini 1.5
+        "gemini-1.5-pro",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
+    ],
     claude: ["claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001", "claude-3-5-sonnet-latest", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-latest", "claude-3-opus-latest"]
 };
 
@@ -21,7 +36,9 @@ export default function ClientAdminSettings({ judgePrompt, geminiMapping, extrac
     const [saveStatus, setSaveStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
     const [extProvider, setExtProvider] = useState<string>(extractorConfig?.provider || "gemini");
+    const [extModel, setExtModel] = useState<string>(extractorConfig?.model || models.gemini[0]);
     const [jdgProvider, setJdgProvider] = useState<string>(judgeConfig?.provider || "gemini");
+    const [jdgModel, setJdgModel] = useState<string>(judgeConfig?.model || models.gemini[0]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -62,7 +79,11 @@ export default function ClientAdminSettings({ judgePrompt, geminiMapping, extrac
                                 id="extractor_provider"
                                 name="extractor_provider"
                                 value={extProvider}
-                                onChange={(e) => setExtProvider(e.target.value)}
+                                onChange={(e) => {
+                                    const p = e.target.value;
+                                    setExtProvider(p);
+                                    setExtModel(models[p as keyof typeof models]?.[0] || "");
+                                }}
                                 className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                 required
                             >
@@ -77,7 +98,8 @@ export default function ClientAdminSettings({ judgePrompt, geminiMapping, extrac
                             <select
                                 id="extractor_model"
                                 name="extractor_model"
-                                defaultValue={extractorConfig?.model || (extProvider === 'gemini' ? models.gemini[0] : models.claude[0])}
+                                value={extModel}
+                                onChange={(e) => setExtModel(e.target.value)}
                                 className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                 required
                             >
@@ -104,7 +126,11 @@ export default function ClientAdminSettings({ judgePrompt, geminiMapping, extrac
                                 id="judge_provider"
                                 name="judge_provider"
                                 value={jdgProvider}
-                                onChange={(e) => setJdgProvider(e.target.value)}
+                                onChange={(e) => {
+                                    const p = e.target.value;
+                                    setJdgProvider(p);
+                                    setJdgModel(models[p as keyof typeof models]?.[0] || "");
+                                }}
                                 className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                 required
                             >
@@ -119,7 +145,8 @@ export default function ClientAdminSettings({ judgePrompt, geminiMapping, extrac
                             <select
                                 id="judge_model"
                                 name="judge_model"
-                                defaultValue={judgeConfig?.model || (jdgProvider === 'gemini' ? models.gemini[0] : models.claude[0])}
+                                value={jdgModel}
+                                onChange={(e) => setJdgModel(e.target.value)}
                                 className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                 required
                             >
