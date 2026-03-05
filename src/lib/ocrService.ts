@@ -1,5 +1,6 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { OcrResponse } from "./types";
+import { callAiModel, AiProvider } from "./aiService";
+import { supabase } from "./supabase";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -72,49 +73,36 @@ Required JSON Structure:
 `;
 }
 
-export async function processReceiptWithOCR(imageUrl: string): Promise<OcrResponse> {
-    if (!GEMINI_API_KEY) {
-        console.warn("GEMINI_API_KEY not found. Using Mock Service.");
-        return processReceiptWithMock();
-    }
-
+export async function processReceiptWithOCR(imageUrl: string): Promise<any> {
     try {
-        console.log("Processing with Gemini Flash (JSON Mode)...");
-        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({
-            model: "gemini-flash-latest",
-            systemInstruction: buildSystemPrompt(),
-            generationConfig: {
-                responseMimeType: "application/json",
-            }
-        });
+        // 1. Fetch AI Config from DB
+        const { data: settings } = await supabase.from("admin_settings").select("key, value");
+        const extractorConfig = settings?.find(s => s.key === "extractor_config")?.value || { provider: "gemini", model: "gemini-1.5-flash" };
 
-        // 1. Fetch image and convert to base64
+        console.log(`Processing with ${extractorConfig.provider} (${extractorConfig.model})...`);
+
+        // 2. Fetch image and convert to base64
         const tFetchStart = Date.now();
         const imgResponse = await fetch(imageUrl);
-        if (!imgResponse.ok) throw new Error(`Failed to fetch image from Supabase: ${imgResponse.statusText}`);
+        if (!imgResponse.ok) throw new Error(`Failed to fetch image: ${imgResponse.statusText}`);
         const buffer = await imgResponse.arrayBuffer();
         const base64Data = Buffer.from(buffer).toString("base64");
         const mimeType = imgResponse.headers.get("content-type") || "image/jpeg";
         console.log(`[OCR Timing] Fetch + Base64: ${Date.now() - tFetchStart}ms`);
 
-        // 2. Call Gemini with inlineData
+        // 3. Call AI Model
         const tAiStart = Date.now();
-        const result = await model.generateContent([
-            {
-                inlineData: {
-                    data: base64Data,
-                    mimeType,
-                },
-            },
-            "Extract receipt data in JSON format."
-        ]);
+        const result = await callAiModel({
+            provider: extractorConfig.provider as AiProvider,
+            model: extractorConfig.model,
+            systemPrompt: SYSTEM_PROMPT,
+            base64Data,
+            mimeType
+        });
 
-        const response = await result.response;
-        const text = response.text();
-        console.log(`[OCR Timing] Gemini API: ${Date.now() - tAiStart}ms`);
+        const text = result.text;
+        console.log(`[OCR Timing] AI API: ${Date.now() - tAiStart}ms`);
         console.log(`[OCR Stats] Response length: ${text.length} chars`);
-        console.log("Gemini Usage:", response.usageMetadata);
 
         try {
             const data = JSON.parse(text);
@@ -149,19 +137,11 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
                 is_receipt: data.is_receipt !== false,
                 is_screen: data.is_screen || false,
                 ocr_confidence: 0.9,
-                paymentMethods: (data.paymentMethods || []).map((pm: { amount: number; method: string }) => ({
+                paymentMethods: (data.paymentMethods || []).map((pm: any) => ({
                     amount: { confidence: 0.9, value: pm.amount },
                     method: { confidence: 0.9, value: pm.method }
                 })),
-                products: (data.items || []).map((item: {
-                    unitPrice: number;
-                    quantity: number;
-                    description: string;
-                    totalPrice: number;
-                    discount: number;
-                    discountDescription: string | null;
-                }, i: number) => {
-                    // Normalize quantity: If not an integer, default to 1 and adjust unitPrice
+                products: (data.items || []).map((item: any, i: number) => {
                     let finalQty = item.quantity;
                     let finalUnitPrice = item.unitPrice;
 
@@ -185,12 +165,8 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
                 time: { confidence: 0.9, value: data.time },
                 merchant_detection_sources: { value: data.retailer, confidence: 0.9 },
                 gemini_raw_response: text,
-                usage: response.usageMetadata ? {
-                    prompt_tokens: response.usageMetadata.promptTokenCount,
-                    candidates_tokens: response.usageMetadata.candidatesTokenCount,
-                    total_tokens: response.usageMetadata.totalTokenCount,
-                } : undefined
-            } as OcrResponse;
+                usage: result.usage
+            };
 
         } catch (parseError) {
             console.error("JSON Parse Error:", parseError);
@@ -200,49 +176,7 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
 
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : "OCR Processing Failed";
-        console.error("Gemini OCR Failed:", errorMessage);
+        console.error("AI OCR Failed:", errorMessage);
         throw new Error(errorMessage);
     }
-}
-
-async function processReceiptWithMock(): Promise<OcrResponse> {
-    // Simulate network latency
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    // Mock response based on the user provided JSON
-    const mockResponse: OcrResponse = {
-        "banner_id": 0,
-        "date": {
-            "confidence": 99.1866683959961,
-            "value": "01/12/2025"
-        },
-        "isDigital": false,
-        "isFraudulent": false,
-        "is_blurry": false,
-        "is_receipt": true,
-        "is_screen": false,
-        "ocr_confidence": 96.30787658691406,
-        "paymentMethods": [
-            {
-                "amount": { "confidence": 100, "value": 141.1 },
-                "method": { "confidence": 99.98564910888672, "value": "Cash" }
-            }
-        ],
-        "products": [
-            {
-                "line": 1009,
-                "price": { "confidence": 99.98662567138672, "value": 12.99 },
-                "qty": { "confidence": 100, "value": 1 },
-                "rsd": { "confidence": 99.76820373535156, "value": "MESSARIS BUBBLES 100GR" },
-                "totalPrice": { "confidence": 100, "value": 12.99 },
-                "product_name": "MESSARIS BUBBLES 100GR"
-            }
-            // ... (rest of mock data can be simplified or full list)
-        ],
-        "total": { "confidence": 95, "value": 141.13 },
-        "time": { "confidence": 99.1866683959961, "value": "19:00" },
-        "merchant_detection_sources": { "confidence": 99, "value": "SPAR" }
-    };
-
-    return mockResponse;
 }
