@@ -48,7 +48,7 @@ export default async function AdminSettingsPage() {
 
     } catch (error: any) {
         // If the table does not exist, show a helpful message
-        if (error.code === '42P01') {
+        if (error?.code === '42P01') {
             return (
                 <div className="max-w-4xl space-y-6">
                     <div className="p-6 bg-red-50 border border-red-200 rounded-xl space-y-4">
@@ -75,7 +75,7 @@ export default async function AdminSettingsPage() {
             <div className="max-w-4xl space-y-6">
                 <div className="p-6 bg-red-50 border border-red-200 rounded-xl">
                     <h2 className="text-xl font-bold text-red-800">Error Loading Settings</h2>
-                    <p className="text-red-700 mt-2">{error.message || "An unknown error occurred."}</p>
+                    <p className="text-red-700 mt-2">{error?.message || "An unknown error occurred."}</p>
                 </div>
             </div>
         );

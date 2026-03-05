@@ -125,7 +125,7 @@ export default async function BatchHistoryPage() {
                 </div>
             </div>
         );
-    } catch (err: any) {
+    } catch (err: unknown) {
         if (err.code === '42P01') {
             return (
                 <div className="p-6 bg-amber-50 rounded border border-amber-200">

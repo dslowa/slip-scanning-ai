@@ -136,7 +136,7 @@ export async function POST(req: Request) {
             if (geminiRetailer === null || geminiDate === null || geminiTotal === null) {
                 triageReasons.push("Gemini missing required fields");
             }
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error(`[Batch Processor] Extractor AI Error: ${e.message}`);
             triageReasons.push(`Gemini Parse/API Error: ${e.message}`);
         }
@@ -175,7 +175,7 @@ export async function POST(req: Request) {
             if (confRetailer < threshold || confDate < threshold || confTotal < threshold) {
                 triageReasons.push(`Judge confidence below ${threshold}`);
             }
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error(`[Batch Processor] Judge AI Error: ${e.message}`);
             triageReasons.push(`Judge Parse/API Error: ${e.message}`);
         }
@@ -269,7 +269,7 @@ export async function POST(req: Request) {
 
         console.log(`[Batch Processor] Slip ${currentSlipId} COMPLETED successfully.`);
         return NextResponse.json({ success: true, slipId: currentSlipId, reviewRequired, reason: finalReason });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error(`[Batch Processor] FATAL ERROR for ${currentSlipId}:`, error);
 
         // Try to update the slip status to error in DB so finishBatch can see it
@@ -281,7 +281,7 @@ export async function POST(req: Request) {
                     review_reason: `System Error: ${error.message}`
                 }).eq("id", currentSlipId);
                 console.log(`[Batch Processor] Slip ${currentSlipId} marked as ERROR in DB.`);
-            } catch (dbError: any) {
+            } catch (dbError: unknown) {
                 console.error(`[Batch Processor] Failed to mark slip ${currentSlipId} as ERROR in DB:`, dbError.message);
             }
         }
