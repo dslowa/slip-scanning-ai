@@ -53,6 +53,22 @@ Required JSON Structure:
 }
 `;
 
+interface GeminiJson {
+    [key: string]: unknown;
+}
+
+interface JudgeJson {
+    retailer_name?: string | null;
+    slip_date?: string | null;
+    total_incl_vat?: number | null;
+    confidence?: {
+        retailer_name?: number;
+        slip_date?: number;
+        total_incl_vat?: number;
+    };
+    notes?: string;
+}
+
 export async function POST(req: Request) {
     let currentSlipId: string | null = null;
     try {
@@ -90,7 +106,8 @@ export async function POST(req: Request) {
         }
 
         console.log(`[Batch Processor] Fetching image for ${currentSlipId}...`);
-        let { base64Data, mimeType } = await fetchImageAsBase64(imageUrl);
+        const { base64Data: rawBase64, mimeType } = await fetchImageAsBase64(imageUrl);
+        let base64Data = rawBase64;
         console.log(`[Batch Processor] Image fetched: ${mimeType}, size: ${base64Data.length} bytes`);
 
         // Check and resize if too large (Claude 5MB limit)
@@ -114,12 +131,12 @@ export async function POST(req: Request) {
 
         console.log(`[Batch Processor] Providers - Ext: ${extProvider} (${extModel}), Jdg: ${jdgProvider} (${jdgModel})`);
 
-        let triageReasons: string[] = [];
+        const triageReasons: string[] = [];
 
         // ==========================================
         // 3. GEMINI RUN (Existing Logic wrapper)
         // ==========================================
-        let geminiJson: any = null;
+        let geminiJson: GeminiJson | null = null;
         let geminiRetailer = null;
         let geminiDate = null;
         let geminiTotal = null;
@@ -136,15 +153,16 @@ export async function POST(req: Request) {
             if (geminiRetailer === null || geminiDate === null || geminiTotal === null) {
                 triageReasons.push("Gemini missing required fields");
             }
-        } catch (e: unknown) {
-            console.error(`[Batch Processor] Extractor AI Error: ${e.message}`);
-            triageReasons.push(`Gemini Parse/API Error: ${e.message}`);
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error(`[Batch Processor] Extractor AI Error: ${msg}`);
+            triageReasons.push(`Gemini Parse/API Error: ${msg}`);
         }
 
         // ==========================================
         // 4. JUDGE RUN
         // ==========================================
-        let judgeJson: any = null;
+        let judgeJson: JudgeJson | null = null;
         let judgeRetailer = null;
         let judgeDate = null;
         let judgeTotal = null;
@@ -156,28 +174,31 @@ export async function POST(req: Request) {
         try {
             console.log(`[Batch Processor] Calling Judge AI...`);
             const judgeResult = await withRetry(() => callAiProvider(jdgProvider, jdgModel, judgePromptSetting.text, base64Data, mimeType), 2);
-            judgeJson = JSON.parse(judgeResult.text);
+            judgeJson = JSON.parse(judgeResult.text) as JudgeJson;
 
-            judgeRetailer = judgeJson.retailer_name ?? null;
-            judgeDate = judgeJson.slip_date ?? null;
-            judgeTotal = judgeJson.total_incl_vat ?? null;
+            if (judgeJson) {
+                judgeRetailer = judgeJson.retailer_name ?? null;
+                judgeDate = judgeJson.slip_date ?? null;
+                judgeTotal = judgeJson.total_incl_vat ?? null;
 
-            confRetailer = judgeJson.confidence?.retailer_name || 0;
-            confDate = judgeJson.confidence?.slip_date || 0;
-            confTotal = judgeJson.confidence?.total_incl_vat || 0;
-            judgeNotes = judgeJson.notes || "";
+                confRetailer = judgeJson.confidence?.retailer_name || 0;
+                confDate = judgeJson.confidence?.slip_date || 0;
+                confTotal = judgeJson.confidence?.total_incl_vat || 0;
+                judgeNotes = judgeJson.notes || "";
 
-            if (judgeRetailer === null || judgeDate === null || judgeTotal === null) {
-                triageReasons.push("Judge missing required fields");
+                if (judgeRetailer === null || judgeDate === null || judgeTotal === null) {
+                    triageReasons.push("Judge missing required fields");
+                }
+
+                const threshold = 0.75;
+                if (confRetailer < threshold || confDate < threshold || confTotal < threshold) {
+                    triageReasons.push(`Judge confidence below ${threshold}`);
+                }
             }
-
-            const threshold = 0.75;
-            if (confRetailer < threshold || confDate < threshold || confTotal < threshold) {
-                triageReasons.push(`Judge confidence below ${threshold}`);
-            }
-        } catch (e: unknown) {
-            console.error(`[Batch Processor] Judge AI Error: ${e.message}`);
-            triageReasons.push(`Judge Parse/API Error: ${e.message}`);
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error(`[Batch Processor] Judge AI Error: ${msg}`);
+            triageReasons.push(`Judge Parse/API Error: ${msg}`);
         }
 
         // ==========================================
@@ -209,7 +230,7 @@ export async function POST(req: Request) {
         // ==========================================
         console.log(`[Batch Processor] Saving results for ${currentSlipId}...`);
 
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
             status: "completed",
             processed_at: new Date().toISOString(),
 
@@ -269,7 +290,8 @@ export async function POST(req: Request) {
 
         console.log(`[Batch Processor] Slip ${currentSlipId} COMPLETED successfully.`);
         return NextResponse.json({ success: true, slipId: currentSlipId, reviewRequired, reason: finalReason });
-    } catch (error: unknown) {
+    } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
         console.error(`[Batch Processor] FATAL ERROR for ${currentSlipId}:`, error);
 
         // Try to update the slip status to error in DB so finishBatch can see it
@@ -278,14 +300,15 @@ export async function POST(req: Request) {
                 await supabase.from("batch_slips").update({
                     status: "error",
                     review_required: "YES",
-                    review_reason: `System Error: ${error.message}`
+                    review_reason: `System Error: ${errMsg}`
                 }).eq("id", currentSlipId);
                 console.log(`[Batch Processor] Slip ${currentSlipId} marked as ERROR in DB.`);
-            } catch (dbError: unknown) {
-                console.error(`[Batch Processor] Failed to mark slip ${currentSlipId} as ERROR in DB:`, dbError.message);
+            } catch (dbError) {
+                const dbMsg = dbError instanceof Error ? dbError.message : String(dbError);
+                console.error(`[Batch Processor] Failed to mark slip ${currentSlipId} as ERROR in DB:`, dbMsg);
             }
         }
 
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: errMsg }, { status: 500 });
     }
 }

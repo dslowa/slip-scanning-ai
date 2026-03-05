@@ -99,7 +99,7 @@ async function callClaude(req: AiRequest): Promise<AiResponse> {
                         type: "image",
                         source: {
                             type: "base64",
-                            media_type: req.mimeType as any,
+                            media_type: req.mimeType as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
                             data: req.base64Data,
                         },
                     },
@@ -114,7 +114,7 @@ async function callClaude(req: AiRequest): Promise<AiResponse> {
     });
 
     const text = response.content.find(c => c.type === "text")?.type === "text"
-        ? (response.content.find(c => c.type === "text") as any).text
+        ? (response.content.find(c => c.type === "text") as { type: "text", text: string }).text
         : "";
 
     console.log(`[Claude Response] Length: ${text.length} chars`);

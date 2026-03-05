@@ -167,7 +167,7 @@ export default function ClientAdminSettings({ judgePrompt, geminiMapping, extrac
                 {/* Gemini Extractor Mapping Section */}
                 <div className="p-6 bg-card border border-border rounded-xl space-y-4 shadow-sm">
                     <h2 className="text-lg font-semibold text-foreground">JSON Key Mapping</h2>
-                    <p className="text-sm text-muted">Field paths for the primary extractor's JSON output.</p>
+                    <p className="text-sm text-muted">Field paths for the primary extractor&apos;s JSON output.</p>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-2">

@@ -118,7 +118,7 @@ export default function BatchNewPage() {
                             // API threw an internal error
                             setProgress(p => ({ ...p, processed: p.processed + 1, failed: p.failed + 1 }));
                         }
-                    } catch (e) {
+                    } catch {
                         setProgress(p => ({ ...p, processed: p.processed + 1, failed: p.failed + 1 }));
                     }
                 }

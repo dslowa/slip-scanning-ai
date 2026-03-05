@@ -23,9 +23,9 @@ export async function createBatch(batchName: string, fileCount: number) {
 
         if (error) throw error;
         return { success: true, batchId: data.id };
-    } catch (err: unknown) {
+    } catch (err) {
         console.error("Failed to create batch:", err);
-        return { success: false, error: err.message };
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
 }
 
@@ -40,9 +40,9 @@ export async function createBatchSlip(batchId: string, fileName: string, storage
 
         if (error) throw error;
         return { success: true, slipId: data.id };
-    } catch (err: unknown) {
+    } catch (err) {
         console.error("Failed to create batch slip:", err);
-        return { success: false, error: err.message };
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
 }
 
@@ -79,8 +79,8 @@ export async function finishBatch(batchId: string) {
         if (error) throw error;
         revalidatePath("/batch/history");
         return { success: true };
-    } catch (err: unknown) {
+    } catch (err) {
         console.error("Failed to finish batch:", err);
-        return { success: false, error: err.message };
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
 }

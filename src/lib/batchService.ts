@@ -1,7 +1,4 @@
-import { supabase } from "./supabase"; // Use the client or create a service role client
 import { callAiModel, AiProvider } from "./aiService";
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // 1. Retry Wrapper
 export async function withRetry<T>(fn: () => Promise<T>, retries = 2, delay = 1000): Promise<T> {
@@ -19,7 +16,7 @@ export async function fetchImageAsBase64(imageUrl: string) {
     const imgResponse = await fetch(imageUrl);
     if (!imgResponse.ok) throw new Error(`Failed to fetch image: ${imgResponse.statusText}`);
     const buffer = await imgResponse.arrayBuffer();
-    let base64Data = Buffer.from(buffer).toString("base64");
+    const base64Data = Buffer.from(buffer).toString("base64");
     const mimeType = imgResponse.headers.get("content-type") || "image/jpeg";
 
     return { base64Data, mimeType };
@@ -46,6 +43,7 @@ export async function resizeImageIfTooLarge(base64Data: string, maxSizeMB: numbe
 
     let sharp;
     try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         sharp = require("sharp");
     } catch {
         console.error("[Image Optimizer] CRITICAL: sharp library could not be loaded. Compression aborted.");
