@@ -1,5 +1,6 @@
 import { callAiModel, AiProvider } from "./aiService";
 import { supabase } from "./supabase";
+import { OcrResponse } from "./types";
 
 function buildSystemPrompt(): string {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -70,7 +71,7 @@ Required JSON Structure:
 `;
 }
 
-export async function processReceiptWithOCR(imageUrl: string): Promise<unknown> {
+export async function processReceiptWithOCR(imageUrl: string): Promise<OcrResponse> {
     try {
         // 1. Fetch AI Config from DB
         const { data: settings } = await supabase.from("admin_settings").select("key, value");
