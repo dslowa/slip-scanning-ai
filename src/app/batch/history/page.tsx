@@ -126,7 +126,8 @@ export default async function BatchHistoryPage() {
             </div>
         );
     } catch (err: unknown) {
-        if (err.code === '42P01') {
+        const e = err as { code?: string; message?: string };
+        if (e.code === '42P01') {
             return (
                 <div className="p-6 bg-amber-50 rounded border border-amber-200">
                     <p className="text-amber-800 font-bold">Database Migration Missing</p>
@@ -136,7 +137,7 @@ export default async function BatchHistoryPage() {
         }
         return (
             <div className="p-6 bg-red-50 text-red-800">
-                <p>Failed to load Batch History: {err.message}</p>
+                <p>Failed to load Batch History: {e.message}</p>
             </div>
         )
     }
