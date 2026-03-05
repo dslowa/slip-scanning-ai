@@ -68,15 +68,15 @@ export async function generateBatchExportData(batchId: string) {
     return { rows, batchName: batch.name || "Batch" };
 }
 
-export function exportBatchToCsvBuffer(rows: any[]): Buffer {
+export function exportBatchToCsvString(rows: Record<string, unknown>[]): string {
     const worksheet = xlsx.utils.json_to_sheet(rows);
-    const csvStr = xlsx.utils.sheet_to_csv(worksheet);
-    return Buffer.from(csvStr, 'utf-8');
+    return xlsx.utils.sheet_to_csv(worksheet);
 }
 
-export function exportBatchToXlsxBuffer(rows: any[]): Buffer {
+export function exportBatchToXlsxBuffer(rows: Record<string, unknown>[]): Uint8Array {
     const worksheet = xlsx.utils.json_to_sheet(rows);
     const workbook = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(workbook, worksheet, "Batch Results");
-    return xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
+    const buffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
+    return new Uint8Array(buffer);
 }

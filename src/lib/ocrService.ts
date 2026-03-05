@@ -1,8 +1,5 @@
-import { OcrResponse } from "./types";
 import { callAiModel, AiProvider } from "./aiService";
 import { supabase } from "./supabase";
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 function buildSystemPrompt(): string {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -73,7 +70,7 @@ Required JSON Structure:
 `;
 }
 
-export async function processReceiptWithOCR(imageUrl: string): Promise<any> {
+export async function processReceiptWithOCR(imageUrl: string): Promise<unknown> {
     try {
         // 1. Fetch AI Config from DB
         const { data: settings } = await supabase.from("admin_settings").select("key, value");
@@ -95,7 +92,7 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<any> {
         const result = await callAiModel({
             provider: extractorConfig.provider as AiProvider,
             model: extractorConfig.model,
-            systemPrompt: SYSTEM_PROMPT,
+            systemPrompt: buildSystemPrompt(),
             base64Data,
             mimeType
         });
@@ -137,11 +134,11 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<any> {
                 is_receipt: data.is_receipt !== false,
                 is_screen: data.is_screen || false,
                 ocr_confidence: 0.9,
-                paymentMethods: (data.paymentMethods || []).map((pm: any) => ({
+                paymentMethods: (data.paymentMethods || []).map((pm: { amount: number, method: string }) => ({
                     amount: { confidence: 0.9, value: pm.amount },
                     method: { confidence: 0.9, value: pm.method }
                 })),
-                products: (data.items || []).map((item: any, i: number) => {
+                products: (data.items || []).map((item: { quantity: unknown, unitPrice: unknown, totalPrice: unknown, description: string, discount?: number, discountDescription?: string }, i: number) => {
                     let finalQty = item.quantity;
                     let finalUnitPrice = item.unitPrice;
 

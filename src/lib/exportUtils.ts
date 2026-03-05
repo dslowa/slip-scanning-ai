@@ -18,9 +18,9 @@ function processFlatData(data: any[]) {
         for (const [key, value] of Object.entries(item)) {
             if (Array.isArray(value)) {
                 if (key === 'payment_methods' || key === 'payments') {
-                    flat[key] = value.map((p: any) => `${p.method || ''}: R${p.amount || 0}`).join(", ");
-                } else if (key === 'product_line_items' || key === 'items') {
-                    flat[key] = value.map((i: any) => `${i.qty || 1}x ${i.description || 'Item'} (R${i.final_line_total || i.final_price || 0})`).join(" | ");
+                    flat[key] = value.map((p: { method?: string; amount?: number }) => `${p.method || ''}: R${p.amount || 0}`).join(", ");
+                } else if (key === 'items' && Array.isArray(value)) {
+                    flat[key] = value.map((i: { qty?: number; description?: string; final_line_total?: number; final_price?: number }) => `${i.qty || 1}x ${i.description || 'Item'} (R${i.final_line_total || i.final_price || 0})`).join(" | ");
                 } else {
                     flat[key] = JSON.stringify(value);
                 }

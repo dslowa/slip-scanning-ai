@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateBatchExportData, exportBatchToCsvBuffer } from "@/lib/batchExport";
+import { generateBatchExportData, exportBatchToCsvString } from "@/lib/batchExport";
 
 export async function GET(
     request: Request,
@@ -14,13 +14,13 @@ export async function GET(
             return new NextResponse("No completed slips found for this batch", { status: 404 });
         }
 
-        const csvBuffer = exportBatchToCsvBuffer(rows);
+        const csvString = exportBatchToCsvString(rows);
 
         // Create a safe filename
         const safeName = batchName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         const filename = `batch_export_${safeName}_${batchId.split('-')[0]}.csv`;
 
-        return new NextResponse(csvBuffer, {
+        return new NextResponse(csvString, {
             status: 200,
             headers: {
                 "Content-Type": "text/csv; charset=utf-8",
@@ -28,8 +28,8 @@ export async function GET(
             },
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("CSV Export error:", error);
-        return new NextResponse(error.message || "Failed to generate CSV export", { status: 500 });
+        return new NextResponse(error instanceof Error ? error.message : "Failed to generate CSV export", { status: 500 });
     }
 }

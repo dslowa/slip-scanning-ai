@@ -69,8 +69,8 @@ export async function saveAdminSettings(formData: FormData) {
         revalidatePath("/admin/settings");
         revalidatePath("/batch/new");
         return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Failed to save settings:", error);
-        return { success: false, error: error.message };
+        return { success: false, error: error instanceof Error ? error.message : "An unknown error occurred" };
     }
 }

@@ -58,10 +58,10 @@ export default function ReceiptDataTable({ initialReceipts }: ReceiptDataTablePr
                 is_screen: receipt.is_screen,
                 is_receipt: receipt.is_receipt,
                 slip_total: receipt.total_amount,
-                payment_methods: receipt.receipt_payments?.map((p: any) => ({ method: p.method, amount: p.amount })) || [],
-                image_url: receipt.image_url,
-                is_duplicate: receipt.is_duplicate,
-                product_line_items: receipt.receipt_items?.map((i: any) => ({
+                payment_methods: receipt.receipt_payments?.map((p: { method: string, amount: number }) => ({ method: p.method, amount: p.amount })) || [],
+                total: receipt.total_incl_vat || 0,
+                status: receipt.review_required ? 'review' : 'completed',
+                product_line_items: receipt.receipt_items?.map((i: { quantity?: number, description?: string, final_price?: number, unit_price?: number, discount?: number, total_price?: number }) => ({
                     description: i.description,
                     qty: i.quantity,
                     unit_price: i.unit_price,
