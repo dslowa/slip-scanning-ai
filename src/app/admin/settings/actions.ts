@@ -19,6 +19,9 @@ export async function saveAdminSettings(formData: FormData) {
         const judgeProvider = formData.get("judge_provider") as string;
         const judgeModel = formData.get("judge_model") as string;
 
+        const slipProvider = formData.get("slip_provider") as string;
+        const slipModel = formData.get("slip_model") as string;
+
         const retailerPath = formData.get("gemini_retailer_path") as string;
         const datePath = formData.get("gemini_date_path") as string;
         const totalPath = formData.get("gemini_total_path") as string;
@@ -62,6 +65,16 @@ export async function saveAdminSettings(formData: FormData) {
         }, { onConflict: "key" });
 
         if (error4) throw error4;
+
+        const { error: error5 } = await supabase.from("admin_settings").upsert({
+            key: "slip_extractor_config",
+            value: {
+                provider: slipProvider || "gemini",
+                model: slipModel || "gemini-2.0-flash"
+            },
+        }, { onConflict: "key" });
+
+        if (error5) throw error5;
 
         // Clean up old config if needed (optional)
         await supabase.from("admin_settings").delete().eq("key", "ai_config");

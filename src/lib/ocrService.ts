@@ -75,7 +75,7 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
     try {
         // 1. Fetch AI Config from DB
         const { data: settings } = await supabase.from("admin_settings").select("key, value");
-        const extractorConfig = settings?.find(s => s.key === "extractor_config")?.value || { provider: "gemini", model: "gemini-1.5-flash" };
+        const extractorConfig = settings?.find(s => s.key === "slip_extractor_config")?.value || { provider: "gemini", model: "gemini-2.0-flash" };
 
         console.log(`Processing with ${extractorConfig.provider} (${extractorConfig.model})...`);
 

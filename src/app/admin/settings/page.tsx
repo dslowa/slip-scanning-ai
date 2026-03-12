@@ -37,12 +37,16 @@ export default async function AdminSettingsPage() {
         const judgeConfigSetting = settings?.find(s => s.key === "judge_config");
         const judgeConfig = judgeConfigSetting?.value || { provider: "gemini", model: "gemini-1.5-flash" };
 
+        const slipConfigSetting = settings?.find(s => s.key === "slip_extractor_config");
+        const slipConfig = slipConfigSetting?.value || { provider: "gemini", model: "gemini-2.0-flash" };
+
         return (
             <ClientAdminSettings
                 judgePrompt={judgePrompt}
                 geminiMapping={geminiMapping}
                 extractorConfig={extractorConfig}
                 judgeConfig={judgeConfig}
+                slipConfig={slipConfig}
             />
         );
 

@@ -8,6 +8,7 @@ type Props = {
     geminiMapping: { retailer_path: string; date_path: string; total_path: string };
     extractorConfig: { provider: string; model: string };
     judgeConfig: { provider: string; model: string };
+    slipConfig: { provider: string; model: string };
 };
 
 const providers = ["gemini", "claude"] as const;
@@ -15,6 +16,7 @@ const models = {
     gemini: [
         // Gemini 3
         "gemini-3.1-pro-preview",
+        "gemini-3.1-flash-lite-preview",
         "gemini-3-flash-preview",
         // Gemini 2.5
         "gemini-2.5-pro",
@@ -31,7 +33,7 @@ const models = {
     claude: ["claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001", "claude-3-5-sonnet-latest", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-latest", "claude-3-opus-latest"]
 };
 
-export default function ClientAdminSettings({ judgePrompt, geminiMapping, extractorConfig, judgeConfig }: Props) {
+export default function ClientAdminSettings({ judgePrompt, geminiMapping, extractorConfig, judgeConfig, slipConfig }: Props) {
     const [isSaving, setIsSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
@@ -39,6 +41,8 @@ export default function ClientAdminSettings({ judgePrompt, geminiMapping, extrac
     const [extModel, setExtModel] = useState<string>(extractorConfig?.model || models.gemini[0]);
     const [jdgProvider, setJdgProvider] = useState<string>(judgeConfig?.provider || "gemini");
     const [jdgModel, setJdgModel] = useState<string>(judgeConfig?.model || models.gemini[0]);
+    const [slipProvider, setSlipProvider] = useState<string>(slipConfig?.provider || "gemini");
+    const [slipModel, setSlipModel] = useState<string>(slipConfig?.model || models.gemini[0]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -151,6 +155,53 @@ export default function ClientAdminSettings({ judgePrompt, geminiMapping, extrac
                                 required
                             >
                                 {models[jdgProvider as keyof typeof models]?.map(m => (
+                                    <option key={m} value={m}>{m}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Slip Upload Model Section */}
+                <div className="p-6 bg-card border border-border rounded-xl space-y-4 shadow-sm">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-6 bg-blue-500 rounded-full" />
+                        <h2 className="text-lg font-semibold text-foreground">Slip Upload Model</h2>
+                    </div>
+                    <p className="text-sm text-muted">Model used when processing individual slip uploads from the Scan page.</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label htmlFor="slip_provider" className="text-sm font-medium text-foreground">Provider</label>
+                            <select
+                                id="slip_provider"
+                                name="slip_provider"
+                                value={slipProvider}
+                                onChange={(e) => {
+                                    const p = e.target.value;
+                                    setSlipProvider(p);
+                                    setSlipModel(models[p as keyof typeof models]?.[0] || "");
+                                }}
+                                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                required
+                            >
+                                {providers.map(p => (
+                                    <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label htmlFor="slip_model" className="text-sm font-medium text-foreground">Model</label>
+                            <select
+                                id="slip_model"
+                                name="slip_model"
+                                value={slipModel}
+                                onChange={(e) => setSlipModel(e.target.value)}
+                                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                required
+                            >
+                                {models[slipProvider as keyof typeof models]?.map(m => (
                                     <option key={m} value={m}>{m}</option>
                                 ))}
                             </select>
