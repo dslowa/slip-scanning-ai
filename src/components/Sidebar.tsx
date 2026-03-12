@@ -134,7 +134,7 @@ export default function Sidebar() {
         <div className="flex items-center justify-between h-16 px-4 border-b border-border">
           {!collapsed && (
             <span className="text-lg font-semibold text-foreground">
-              SlipScan AI
+              Slip Genie
             </span>
           )}
           <button
@@ -181,7 +181,7 @@ export default function Sidebar() {
         {/* Footer */}
         <div className="p-4 border-t border-border">
           {!collapsed && (
-            <p className="text-xs text-muted">SavvySaver Moderator Panel</p>
+            <p className="text-xs text-muted">Slip Genie Moderator Panel</p>
           )}
         </div>
       </aside>

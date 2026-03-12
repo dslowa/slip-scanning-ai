@@ -11,8 +11,8 @@ const geistSans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "SlipScan AI - Moderator Dashboard",
-  description: "AI-powered till slip scanning and moderation dashboard for SavvySaver",
+  title: "Slip Genie - Moderator Dashboard",
+  description: "AI-powered till slip scanning and moderation dashboard",
 };
 
 export default function RootLayout({
