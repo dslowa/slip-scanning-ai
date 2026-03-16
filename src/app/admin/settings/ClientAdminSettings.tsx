@@ -4,6 +4,7 @@ import { useState } from "react";
 import { saveAdminSettings } from "./actions";
 
 type Props = {
+    extractorPrompt: { version: string; text: string };
     judgePrompt: { version: string; text: string };
     geminiMapping: { retailer_path: string; date_path: string; total_path: string };
     extractorConfig: { provider: string; model: string };
@@ -33,7 +34,7 @@ const models = {
     claude: ["claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001", "claude-3-5-sonnet-latest", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-latest", "claude-3-opus-latest"]
 };
 
-export default function ClientAdminSettings({ judgePrompt, geminiMapping, extractorConfig, judgeConfig, slipConfig }: Props) {
+export default function ClientAdminSettings({ extractorPrompt, judgePrompt, geminiMapping, extractorConfig, judgeConfig, slipConfig }: Props) {
     const [isSaving, setIsSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
@@ -111,6 +112,39 @@ export default function ClientAdminSettings({ judgePrompt, geminiMapping, extrac
                                     <option key={m} value={m}>{m}</option>
                                 ))}
                             </select>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Extractor Prompt Section */}
+                <div className="p-6 bg-card border border-border rounded-xl space-y-4 shadow-sm">
+                    <h2 className="text-lg font-semibold text-foreground">Extractor Prompt Logic</h2>
+                    <p className="text-sm text-muted">The instruction set used by the Extractor model to pull data from the receipts.</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="md:col-span-1 space-y-2">
+                            <label htmlFor="extractor_prompt_version" className="text-sm font-medium text-foreground">Version</label>
+                            <input
+                                id="extractor_prompt_version"
+                                name="extractor_prompt_version"
+                                type="text"
+                                defaultValue={extractorPrompt?.version || "1.0"}
+                                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                placeholder="e.g. 1.0"
+                                required
+                            />
+                        </div>
+
+                        <div className="md:col-span-3 space-y-2">
+                            <label htmlFor="extractor_prompt_text" className="text-sm font-medium text-foreground">Prompt Text</label>
+                            <textarea
+                                id="extractor_prompt_text"
+                                name="extractor_prompt_text"
+                                rows={16}
+                                defaultValue={extractorPrompt?.text || ""}
+                                className="w-full px-3 py-2 bg-background border border-border text-sm font-mono rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                required
+                            />
                         </div>
                     </div>
                 </div>

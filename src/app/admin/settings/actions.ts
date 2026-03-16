@@ -13,6 +13,9 @@ export async function saveAdminSettings(formData: FormData) {
         const judgePromptVersion = formData.get("judge_prompt_version") as string;
         const judgePromptText = formData.get("judge_prompt_text") as string;
 
+        const extractorPromptVersion = formData.get("extractor_prompt_version") as string;
+        const extractorPromptText = formData.get("extractor_prompt_text") as string;
+
         const extractorProvider = formData.get("extractor_provider") as string;
         const extractorModel = formData.get("extractor_model") as string;
 
@@ -33,6 +36,14 @@ export async function saveAdminSettings(formData: FormData) {
         }, { onConflict: "key" });
 
         if (error1) throw error1;
+
+        // Save extractor prompt
+        const { error: errorExtPrompt } = await supabase.from("admin_settings").upsert({
+            key: "extractor_prompt",
+            value: { version: extractorPromptVersion || "1.0", text: extractorPromptText },
+        }, { onConflict: "key" });
+
+        if (errorExtPrompt) throw errorExtPrompt;
 
         // Save gemini mapping
         const { error: error2 } = await supabase.from("admin_settings").upsert({

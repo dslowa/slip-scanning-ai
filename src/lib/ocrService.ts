@@ -3,12 +3,9 @@ import { supabase } from "./supabase";
 import { OcrResponse } from "./types";
 import { parseSafeNumber } from "./utils";
 
-function buildSystemPrompt(): string {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    return `
-You are a South African grocery till slip processor. Analyse this till slip image and extract all data from it.
+export const defaultExtractorPrompt = `You are a South African grocery till slip processor. Analyse this till slip image and extract all data from it.
 
-TODAY'S DATE (for context): ${today}
+TODAY'S DATE (for context): \${today}
 Use today's date ONLY to decode abbreviated 2-digit years (e.g. "26" → 2026). Never use it to fill in a missing date.
 South African receipts commonly print dates as DD.MM.YY, DD/MM/YY, or DD.MM.YYYY — the FIRST number is always the day.
 
@@ -17,7 +14,7 @@ When reading 2-digit years, carefully distinguish between "25" and "26" as they 
 - "25" = 2025 | "26" = 2026
 - Double-check thermal print quality - faded dots can make "6" look like "5"
 - If the year appears to be "25" but today's date is in 2026, verify carefully - it may be a misread "26"
-- Context check: A receipt dated in 2025 when today is ${today} is likely expired/old
+- Context check: A receipt dated in 2025 when today is \${today} is likely expired/old
 
 CRITICAL — SCREEN DETECTION:
 Set "is_screen": true if the receipt is photographed from a digital screen (monitor/phone/tablet). Indicators: screen pixels/grid, glare, bezels, moiré patterns, UI elements (battery icons, scrollbars), or displayed in an app/viewer. Default to true if uncertain.
@@ -41,7 +38,7 @@ STRICT DATE RULES:
 - If the DATE row is cut off, folded, obscured, blurry, or not fully visible — return "date": null and "date_confidence": 0.
 - If you cannot see both the label AND the value for the date field, return null.
 - NEVER guess, infer, or construct a date. Only copy exactly what is printed in the date field.
-- If your extracted date would be AFTER today (${today}), it is definitely wrong — return null.
+- If your extracted date would be AFTER today (\${today}), it is definitely wrong — return null.
 - Set "date_source" to a short description of exactly where on the receipt you found the date (e.g. "DATE field in bottom TXN row"). If you cannot name a specific location, set date to null.
 
 CRITICAL — DISCOUNT LINE HANDLING:
@@ -73,9 +70,7 @@ paymentMethods (array of {amount: {confidence, value}, method: {confidence, valu
 discounts (array of {description: {confidence, value}, line, price: {confidence, value}, relatedProductIndex}),
 phones (array of {confidence, value}),
 raw_text_array (array of strings), 
-Return only the JSON object with no markdown formatting or code fences
-`;
-}
+Return only the JSON object with no markdown formatting or code fences`;
 
 /**
  * Extracts the 'value' from a field if it's an object (common in AI responses), 
@@ -94,6 +89,13 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
         const { data: settings } = await supabase.from("admin_settings").select("key, value");
         const extractorConfig = settings?.find(s => s.key === "slip_extractor_config")?.value || { provider: "gemini", model: "gemini-2.0-flash" };
 
+        const extractorPromptSetting = settings?.find(s => s.key === "extractor_prompt");
+        let systemPrompt = extractorPromptSetting?.value?.text || defaultExtractorPrompt;
+
+        // Replace literal ${today} with actual current date string
+        const todayStr = new Date().toISOString().split('T')[0];
+        systemPrompt = systemPrompt.replace(/\$\{today\}/g, todayStr);
+
         console.log(`Processing with ${extractorConfig.provider} (${extractorConfig.model})...`);
 
         // 2. Fetch image and convert to base64
@@ -110,7 +112,7 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
         const result = await callAiModel({
             provider: extractorConfig.provider as AiProvider,
             model: extractorConfig.model,
-            systemPrompt: buildSystemPrompt(),
+            systemPrompt,
             base64Data,
             mimeType
         });

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import ClientAdminSettings from "./ClientAdminSettings";
+import { defaultExtractorPrompt } from "@/lib/ocrService";
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,9 @@ export default async function AdminSettingsPage() {
         const judgePromptSetting = settings?.find(s => s.key === "judge_prompt");
         const judgePrompt = judgePromptSetting?.value || { version: "1.0", text: "You are a rigorous receipt judge. Extract retailer_name, slip_date (YYYY-MM-DD), and total_incl_vat. Return strict JSON. Do not guess." };
 
+        const extractorPromptSetting = settings?.find(s => s.key === "extractor_prompt");
+        const extractorPrompt = extractorPromptSetting?.value || { version: "1.0", text: defaultExtractorPrompt };
+
         const mapSetting = settings?.find(s => s.key === "gemini_mapping");
         const geminiMapping = mapSetting?.value || { retailer_path: "retailer", date_path: "date", total_path: "total" };
 
@@ -42,6 +46,7 @@ export default async function AdminSettingsPage() {
 
         return (
             <ClientAdminSettings
+                extractorPrompt={extractorPrompt}
                 judgePrompt={judgePrompt}
                 geminiMapping={geminiMapping}
                 extractorConfig={extractorConfig}
