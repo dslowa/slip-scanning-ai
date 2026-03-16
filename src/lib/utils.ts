@@ -111,7 +111,7 @@ export function formatDateToDDMMYYYY(isoDate: string): string {
  * Handles strings with currency symbols (R, $), commas as decimal separators,
  * and other non-numeric characters.
  */
-export function parseSafeNumber(val: any): number {
+export function parseSafeNumber(val: unknown): number {
     if (typeof val === 'number') return isNaN(val) ? 0 : val;
     if (!val || typeof val !== 'string') return 0;
 
