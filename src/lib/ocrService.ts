@@ -1,6 +1,7 @@
 import { callAiModel, AiProvider } from "./aiService";
 import { supabase } from "./supabase";
 import { OcrResponse } from "./types";
+import { parseSafeNumber } from "./utils";
 
 function buildSystemPrompt(): string {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -76,6 +77,17 @@ Return only the JSON object with no markdown formatting or code fences
 `;
 }
 
+/**
+ * Extracts the 'value' from a field if it's an object (common in AI responses), 
+ * otherwise returns the field itself.
+ */
+function getAiValue(field: any): any {
+    if (field && typeof field === 'object' && 'value' in field) {
+        return field.value;
+    }
+    return field;
+}
+
 export async function processReceiptWithOCR(imageUrl: string): Promise<OcrResponse> {
     try {
         // 1. Fetch AI Config from DB
@@ -112,18 +124,19 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
             console.log(`[OCR Stats] Extracted items count: ${data.items?.length || 0}`);
 
             // Map to internal OcrResponse structure
+            const aiDate = getAiValue(data.date);
             return {
                 banner_id: 0,
                 date: (() => {
                     const confidence = typeof data.date_confidence === 'number' ? data.date_confidence : (data.date_is_printed ? 90 : 0);
-                    const passesConfidence = data.date_is_printed && confidence >= 80 && !!data.date;
+                    const passesConfidence = data.date_is_printed && confidence >= 80 && !!aiDate;
 
                     if (!passesConfidence) {
                         return { confidence: confidence / 100, value: null };
                     }
 
                     // Code-level sanity checks
-                    const parsed = new Date(data.date);
+                    const parsed = new Date(aiDate);
                     const now = new Date();
                     const thirteenMonthsAgo = new Date(now);
                     thirteenMonthsAgo.setMonth(thirteenMonthsAgo.getMonth() - 13);
@@ -132,7 +145,7 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
                     if (parsed > now) return { confidence: 0, value: null };
                     if (parsed < thirteenMonthsAgo) return { confidence: 0, value: null };
 
-                    return { confidence: confidence / 100, value: data.date };
+                    return { confidence: confidence / 100, value: aiDate };
                 })(),
                 isDigital: false,
                 isFraudulent: false,
@@ -140,17 +153,19 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
                 is_receipt: data.is_receipt !== false,
                 is_screen: data.is_screen || false,
                 ocr_confidence: 0.9,
-                paymentMethods: (data.paymentMethods || []).map((pm: { amount: number, method: string }) => ({
-                    amount: { confidence: 0.9, value: pm.amount },
-                    method: { confidence: 0.9, value: pm.method }
+                paymentMethods: (data.paymentMethods || []).map((pm: { amount: any, method: string }) => ({
+                    amount: { confidence: 0.9, value: parseSafeNumber(getAiValue(pm.amount)) },
+                    method: { confidence: 0.9, value: getAiValue(pm.method) }
                 })),
-                products: (data.items || []).map((item: { quantity: unknown, unitPrice: unknown, totalPrice: unknown, description: string, discount?: number, discountDescription?: string }, i: number) => {
-                    let finalQty = item.quantity;
-                    let finalUnitPrice = item.unitPrice;
+                products: (data.items || []).map((item: { quantity: any, unitPrice: any, totalPrice: any, description: string, discount?: any, discountDescription?: string }, i: number) => {
+                    let finalQty = parseSafeNumber(getAiValue(item.quantity)) || 1;
+                    let finalUnitPrice = parseSafeNumber(getAiValue(item.unitPrice));
+                    let finalTotalPrice = parseSafeNumber(getAiValue(item.totalPrice));
+                    let finalDiscount = parseSafeNumber(getAiValue(item.discount));
 
-                    if (typeof finalQty !== 'number' || isNaN(finalQty) || finalQty % 1 !== 0) {
+                    if (isNaN(finalQty) || finalQty % 1 !== 0 || finalQty <= 0) {
                         finalQty = 1;
-                        finalUnitPrice = item.totalPrice;
+                        finalUnitPrice = finalTotalPrice;
                     }
 
                     return {
@@ -158,15 +173,15 @@ export async function processReceiptWithOCR(imageUrl: string): Promise<OcrRespon
                         price: { confidence: 0.9, value: finalUnitPrice },
                         qty: { confidence: 0.9, value: finalQty },
                         rsd: { confidence: 0.9, value: item.description },
-                        totalPrice: { confidence: 0.9, value: item.totalPrice },
+                        totalPrice: { confidence: 0.9, value: finalTotalPrice },
                         product_name: item.description,
-                        discount: item.discount || 0,
+                        discount: finalDiscount,
                         discount_description: item.discountDescription || null
                     };
                 }),
-                total: { confidence: 0.9, value: data.total },
-                time: { confidence: 0.9, value: data.time },
-                merchant_detection_sources: { value: data.retailer, confidence: 0.9 },
+                total: { confidence: 0.9, value: parseSafeNumber(getAiValue(data.total)) },
+                time: { confidence: 0.9, value: getAiValue(data.time) },
+                merchant_detection_sources: { value: getAiValue(data.retailer) || getAiValue(data.merchant_name), confidence: 0.9 },
                 gemini_raw_response: text,
                 usage: result.usage
             };

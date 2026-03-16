@@ -105,3 +105,35 @@ export function formatDateToDDMMYYYY(isoDate: string): string {
         return isoDate;
     }
 }
+
+/**
+ * Robustly parses a value into a number.
+ * Handles strings with currency symbols (R, $), commas as decimal separators,
+ * and other non-numeric characters.
+ */
+export function parseSafeNumber(val: any): number {
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    if (!val || typeof val !== 'string') return 0;
+
+    try {
+        // Remove currency symbols, spaces, and other non-numeric/comma/dot chars
+        // We keep digits, dots, and commas
+        const cleaned = val.replace(/[^0-9.,-]/g, '');
+
+        // Handle European/SA style commas as decimal separators
+        // but only if there isn't already a dot.
+        // If there's both a comma and a dot (e.g. 1,234.56), we assume comma is thousands separator.
+        let normalized = cleaned;
+        if (cleaned.includes(',') && !cleaned.includes('.')) {
+            normalized = cleaned.replace(',', '.');
+        } else if (cleaned.includes(',') && cleaned.includes('.')) {
+            // Remove comma if it's a thousands separator
+            normalized = cleaned.replace(/,/g, '');
+        }
+
+        const num = parseFloat(normalized);
+        return isNaN(num) ? 0 : num;
+    } catch {
+        return 0;
+    }
+}

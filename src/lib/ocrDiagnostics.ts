@@ -1,4 +1,5 @@
 import { OcrResponse, OcrDiagnostics, OcrRuleCheck, ProcessedReceipt } from "./types";
+import { parseSafeNumber } from "./utils";
 
 /**
  * Evaluates the parsed OCR result against the prompt rules and returns
@@ -121,15 +122,21 @@ export function evaluateDiagnostics(
     });
 
     // Check: Item total matches receipt total (RULE 6)
-    const itemSum = parsedData.items.reduce((acc, i) => acc + i.final_price, 0);
-    const difference = Math.abs(itemSum - parsedData.total_amount);
+    const itemSum = parsedData.items.reduce((acc, i) => acc + parseSafeNumber(i.final_price), 0);
+    const totalAmountNum = parseSafeNumber(parsedData.total_amount);
+    const difference = Math.abs(itemSum - totalAmountNum);
     const totalMatchPassed = difference <= 0.10;
+
+    const fmtItemSum = itemSum.toFixed(2);
+    const fmtTotal = totalAmountNum.toFixed(2);
+    const fmtDiff = difference.toFixed(2);
+
     rules.push({
         rule: "RULE 6: Item totals sum matches receipt total (±R0.10)",
         passed: totalMatchPassed,
         detail: totalMatchPassed
-            ? `Item sum R${itemSum.toFixed(2)} matches receipt total R${parsedData.total_amount.toFixed(2)} (diff: R${difference.toFixed(2)}).`
-            : `⚠️ Item sum R${itemSum.toFixed(2)} differs from receipt total R${parsedData.total_amount.toFixed(2)} by R${difference.toFixed(2)} — may indicate missing items or an unmerged discount.`,
+            ? `Item sum R${fmtItemSum} matches receipt total R${fmtTotal} (diff: R${fmtDiff}).`
+            : `⚠️ Item sum R${fmtItemSum} differs from receipt total R${fmtTotal} by R${fmtDiff} — may indicate missing items or an unmerged discount.`,
     });
 
     // ── WARNINGS ──────────────────────────────────────────────────────────────
@@ -142,8 +149,11 @@ export function evaluateDiagnostics(
     }
 
     if (!totalMatchPassed && rawItemCount > 0) {
+        const fmtItemSum = itemSum.toFixed(2);
+        const fmtTotal = totalAmountNum.toFixed(2);
+        const fmtDiff = difference.toFixed(2);
         warnings.push(
-            `Item sum (R${itemSum.toFixed(2)}) and receipt total (R${parsedData.total_amount.toFixed(2)}) differ by R${difference.toFixed(2)}. ` +
+            `Item sum (R${fmtItemSum}) and receipt total (R${fmtTotal}) differ by R${fmtDiff}. ` +
             "This could indicate a missing line item, an unmerged discount, or a cash-rounding issue."
         );
     }

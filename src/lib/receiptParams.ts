@@ -1,5 +1,5 @@
 import { OcrResponse, ProcessedReceipt, ProcessedItem, ProcessedPayment } from "./types";
-import { cleanRetailerName, standardizeDate } from "./utils";
+import { cleanRetailerName, standardizeDate, parseSafeNumber } from "./utils";
 
 export function parseReceipt(ocrData: OcrResponse): ProcessedReceipt {
     // Extract Retailer
@@ -16,22 +16,22 @@ export function parseReceipt(ocrData: OcrResponse): ProcessedReceipt {
     const time = ocrData.time?.value || "00:00";
 
     // Extract Total
-    const total_amount = ocrData.total?.value || 0;
+    const total_amount = parseSafeNumber(ocrData.total?.value);
 
     // Extract Items
     const items: ProcessedItem[] = (ocrData.products || []).map((product) => {
         const description = product.product_name || product.rsd?.value || product.rsd?.original_case_value || "Unknown Item";
-        const quantity = product.qty?.value || 1;
-        const unit_price = product.price?.value || 0;
+        const quantity = parseSafeNumber(product.qty?.value) || 1;
+        const unit_price = parseSafeNumber(product.price?.value);
 
         // As per ExportedItem definition: total_price is qty * unit_price
         const total_price = Number((quantity * unit_price).toFixed(2));
 
         // Get discount directly from product if it exists
-        const discount = product.discount || 0;
+        const discount = parseSafeNumber(product.discount);
 
         // Final paid amount is exactly what OCR returned as totalPrice
-        const final_price = product.totalPrice?.value || Number((total_price - discount).toFixed(2));
+        const final_price = parseSafeNumber(product.totalPrice?.value) || Number((total_price - discount).toFixed(2));
 
         return {
             description,
@@ -46,7 +46,7 @@ export function parseReceipt(ocrData: OcrResponse): ProcessedReceipt {
     // Extract Payments
     const payments: ProcessedPayment[] = (ocrData.paymentMethods || []).map((pm) => ({
         method: pm.method?.value || "Unknown",
-        amount: pm.amount?.value || 0
+        amount: parseSafeNumber(pm.amount?.value)
     }));
 
     return {
