@@ -5,12 +5,25 @@ import { OcrResponse } from "./types";
 function buildSystemPrompt(): string {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     return `
-You are a South African grocery till slip processor. Analyse this receipt image and extract structured data.
-Return valid JSON according to the specified structure.
+You are a South African grocery till slip processor. Analyse this till slip image and extract all data from it.
 
 TODAY'S DATE (for context): ${today}
 Use today's date ONLY to decode abbreviated 2-digit years (e.g. "26" → 2026). Never use it to fill in a missing date.
 South African receipts commonly print dates as DD.MM.YY, DD/MM/YY, or DD.MM.YYYY — the FIRST number is always the day.
+
+CRITICAL — YEAR PARSING:
+When reading 2-digit years, carefully distinguish between "25" and "26" as they are easily misread:
+- "25" = 2025 | "26" = 2026
+- Double-check thermal print quality - faded dots can make "6" look like "5"
+- If the year appears to be "25" but today's date is in 2026, verify carefully - it may be a misread "26"
+- Context check: A receipt dated in 2025 when today is ${today} is likely expired/old
+
+CRITICAL — SCREEN DETECTION:
+Set "is_screen": true if the receipt is photographed from a digital screen (monitor/phone/tablet). Indicators: screen pixels/grid, glare, bezels, moiré patterns, UI elements (battery icons, scrollbars), or displayed in an app/viewer. Default to true if uncertain.
+
+CRITICAL — MERCHANT NAME EXTRACTION:
+Extract only the retailer brand, strip locations/branches/legal suffixes.
+Standards: "DISCHEM PARKMORE PHARMACY" → "Dis-Chem" | "PICK N PAY FAMILY HYDE PARK" → "Pick n Pay" | "CHECKERS HYPER MALL OF AFRICA" → "Checkers" | "TOPS AT SPAR ROSEBANK" → "Spar" | "KWIKSPAR" → "Spar" | "SUPERSPAR" → "Spar" | "WOOLWORTHS FOOD SANDTON" → "Woolworths" | "CLICKS PHARMACY" → "Clicks" | "FOOD LOVER'S MARKET WATERFALL" → "Food Lover's Market" | "SHOPRITE LIQUORSHOP" → "Shoprite" | "OK GROCER" → "OK Foods" | "FRUIT & VEG CITY" → "Fruit & Veg City" | "MAKRO" → "Makro" | "GAME" → "Game" | "BOXER" → "Boxer" | "USAVE" → "Usave" | "CAMBRIDGE FOOD" → "Cambridge Food" | "LIQUOR CITY" → "Liquor City" | "ULTRA LIQUORS" → "Ultra Liquors"
 
 CRITICAL — DATE EXTRACTION:
 The date on a till slip appears in ONE specific, labelled location. Per retailer:
@@ -44,30 +57,22 @@ RULES:
 CRITICAL — QUANTITY HANDLING:
 For grocery items sold by weight or any item where the quantity is not a simple integer (e.g. 0.45kg, 2.3kg, 0.500), ALWAYS set "quantity" to 1. In these cases, set the "unitPrice" to be the same as the "totalPrice" for that line item.
 
-Required JSON Structure:
-{
-    "retailer": "string (the chain name only, e.g. 'MAKRO', 'PICK N PAY', 'SPAR')",
-    "date": "string (YYYY-MM-DD) or null",
-    "date_is_printed": boolean,
-    "date_confidence": number (0-100: 100 = full date clearly visible and readable; 50 = partially visible; 0 = not visible or not found. Default to 0 if unsure),
-    "date_source": "string describing exactly where you saw the date on the receipt, or null if not found",
-    "time": "string (HH:MM) or null",
-    "total": number,
-    "paymentMethods": [{"method": "string", "amount": number}],
-    "items": [
-        {
-            "description": "string",
-            "quantity": number,
-            "unitPrice": number,
-            "totalPrice": number,
-            "discount": number,
-            "discountDescription": "string or null"
-        }
-    ],
-    "is_blurry": boolean,
-    "is_screen": boolean,
-    "is_receipt": boolean
-}
+// JSON Structure Definition
+Return the result as a single JSON object with the following fields (use null for any field you cannot determine):
+merchant_name (string),
+date ({confidence: number, value: final string value should always be in dd/MM/yyyy format and always convert the original string value when in formats like DD.MM.YY, DD/MM/YY, or DD.MM.YYYY to the format dd/MM/yyyy}),
+time ({confidence: number, value: string}),
+total ({confidence: number, value: number}),
+subtotal ({confidence: number, value: number}),
+purchase_type (string),
+is_receipt (boolean), is_blurry (boolean), is_screen (boolean), isDuplicate (boolean), isFraudulent (boolean),
+trip_confidence (number), item_confidence (number),
+products (array of {product_name, qty: {confidence, value}, price: {confidence, value}, totalPrice: {confidence, value}, rpn: {confidence, value}, rsd: {confidence, original_case_value, value}, line, upc, brand, size, item_type}),
+paymentMethods (array of {amount: {confidence, value}, method: {confidence, value}}),
+discounts (array of {description: {confidence, value}, line, price: {confidence, value}, relatedProductIndex}),
+phones (array of {confidence, value}),
+raw_text_array (array of strings), 
+Return only the JSON object with no markdown formatting or code fences
 `;
 }
 
